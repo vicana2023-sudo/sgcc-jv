@@ -69,6 +69,70 @@ Al terminar le da la dirección pública, del tipo `https://SU-PROYECTO.web.app`
 
 Vuelva a ejecutar el mismo comando. Para actualizar el grafo, reemplace `public/datos/etul4_completa.ttl` por el que genera `04_poblar_ontologia.py` y despliegue otra vez.
 
+O deje que se publique solo: vea la sección siguiente.
+
+---
+
+## Despliegue continuo desde GitHub
+
+El repositorio es <https://github.com/vicana2023-sudo/sgcc-jv>. Con esto configurado, **cada cambio que llegue a `main` y toque el sitio se verifica y se publica sin que usted haga nada**. El flujo está en `.github/workflows/desplegar-hosting.yml`.
+
+### Lo que hace antes de publicar
+
+No hay compilación, así que un error de sintaxis iría derecho a producción. El flujo lo detiene antes:
+
+| Comprobación | Qué evita |
+|---|---|
+| Sintaxis de `public/app/*.js` | Un módulo roto que deja la página en blanco |
+| Sintaxis de `functions/index.js` | Lo mismo en la función servidor |
+| `banco.json` y `historias.json` son JSON válido | Que la entrevista o la validación no carguen |
+| El `.ttl` existe, no está vacío y trae `@prefix etul:` y `owl:equivalentClass` | Un grafo truncado al copiarlo |
+| Pestañas, secciones, roles, consultas e historias concuerdan | Un rol con una pestaña que no abre nada |
+
+Si algo falla, no se despliega y el commit queda marcado en rojo en GitHub.
+
+> **Cuidado con `node --check`.** Para estos archivos no sirve: con un módulo ES roto devuelve 0 y deja pasar el error. El flujo usa `node --input-type=module --check < archivo`, que sí falla. Si añade comprobaciones, respete esa forma.
+
+### Lo que falta hacer una sola vez
+
+El flujo necesita un secreto en el repositorio con las credenciales de despliegue. **No lo puede crear nadie más que usted**, porque implica generar una clave de su proyecto de Firebase.
+
+Desde esta carpeta:
+
+```bash
+firebase login
+```
+
+```bash
+firebase init hosting:github
+```
+
+Responda así:
+
+- **Repositorio**: `vicana2023-sudo/sgcc-jv`
+- **¿Configurar un script de compilación antes de desplegar?** → **No**. El sitio es estático.
+- **¿Desplegar al canal en producción cuando se fusione a una rama?** → **No**. De eso ya se encarga `desplegar-hosting.yml`; si responde que sí, tendrá dos flujos haciendo lo mismo.
+
+El comando crea una cuenta de servicio, guarda su JSON como secreto del repositorio y no vuelve a hacer falta. El secreto debe llamarse **`FIREBASE_SERVICE_ACCOUNT_SGCC_JV`**; compruébelo en Settings → Secrets and variables → Actions. Si quedó con otro nombre, corríjalo ahí o cambie el nombre en el flujo.
+
+### Comprobar que quedó andando
+
+```bash
+gh workflow run "Desplegar en Firebase Hosting" --repo vicana2023-sudo/sgcc-jv
+```
+
+```bash
+gh run watch --repo vicana2023-sudo/sgcc-jv
+```
+
+El flujo también se puede lanzar a mano desde la pestaña Actions, útil para republicar sin tocar el código.
+
+### Lo que no despliega, a propósito
+
+**Nunca despliega `functions`.** La función del modelo de lenguaje necesita el plan Blaze y el secreto `ANTHROPIC_API_KEY`; intentarlo desde el flujo fallaría en el plan gratuito. Cuando la vaya a usar, despliéguela a mano como dice la sección siguiente.
+
+**No valida la ontología.** Comprueba que el `.ttl` esté y tenga forma, no que sea consistente. Eso es trabajo de pySHACL o de HermiT en Protégé, y va aparte.
+
 ---
 
 ## Opcional: el modo con modelo de lenguaje

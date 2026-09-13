@@ -1,0 +1,102 @@
+# Despliegue continuo en Firebase Hosting.
+#
+# Cada cambio que llegue a «main» y toque el sitio se verifica y, si pasa, se
+# publica solo. No hay paso de compilación: el MVP es estático, así que lo que
+# está en public/ es exactamente lo que se sirve.
+#
+# Se despliega SOLO hosting, nunca functions. La función del modelo de lenguaje
+# necesita el plan Blaze y el secreto ANTHROPIC_API_KEY; desplegarla desde aquí
+# fallaría en el plan gratuito. Cuando llegue el momento se despliega a mano,
+# como dice LEEME_DESPLIEGUE.md.
+#
+# Requiere un secreto del repositorio: FIREBASE_SERVICE_ACCOUNT_SGCC_JV, con el
+# JSON de una cuenta de servicio con permiso de «Firebase Hosting Admin».
+# Lo crea `firebase init hosting:github`; ver LEEME_DESPLIEGUE.md.
+
+name: Desplegar en Firebase Hosting
+
+on:
+  push:
+    branches: [main]
+    # Un cambio en el README no merece un despliegue.
+    paths:
+      - "public/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/desplegar-hosting.yml"
+  workflow_dispatch:        # para republicar a mano sin tocar el código
+
+# Si se empujan dos cambios seguidos, gana el último: no tiene sentido publicar
+# una versión que ya quedó vieja mientras sube.
+concurrency:
+  group: hosting-produccion
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Verificar antes de publicar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # OJO: `node --check archivo.js` NO sirve para estos archivos. Con un
+      # módulo ES roto devuelve 0 y deja pasar el error. Hay que forzar el
+      # análisis como módulo por la entrada estándar.
+      - name: Sintaxis de los módulos del navegador
+        run: |
+          fallo=0
+          for f in public/app/*.js; do
+            if node --input-type=module --check < "$f"; then
+              echo "OK   $f"
+            else
+              echo "ROTO $f"; fallo=1
+            fi
+          done
+          exit $fallo
+
+      - name: Sintaxis de la función servidor
+        run: node --check functions/index.js
+
+      - name: Los datos son JSON válido
+        run: |
+          for f in public/datos/*.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" \
+              && echo "OK   $f" || exit 1
+          done
+
+      # El grafo es el dato del que depende todo lo demás. No se valida la
+      # ontología aquí (eso es pySHACL, y va aparte), solo que el archivo esté
+      # y no llegue truncado o vacío por un fallo al copiarlo.
+      - name: El grafo está y tiene contenido
+        run: |
+          f=public/datos/etul4_completa.ttl
+          test -s "$f" || { echo "falta $f o está vacío"; exit 1; }
+          grep -q "@prefix etul:" "$f" || { echo "$f no declara el prefijo etul:"; exit 1; }
+          grep -q "owl:equivalentClass" "$f" || { echo "$f no trae clases definidas"; exit 1; }
+          echo "OK   $f ($(wc -l < "$f") líneas)"
+
+      # Cada pestaña de index.html tiene que tener su sección, y cada vista
+      # declarada en auth.js tiene que existir como pestaña. Descuadrar esto
+      # deja un rol con una pestaña que no abre nada, y no se nota hasta
+      # cambiar de rol en producción.
+      - name: Las vistas, las pestañas y los roles concuerdan
+        run: node .github/scripts/comprobar-vistas.mjs
+
+  desplegar:
+    name: Publicar en Hosting
+    needs: verificar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Desplegar al canal en producción
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SGCC_JV }}
+          projectId: sgcc-jv
+          channelId: live
