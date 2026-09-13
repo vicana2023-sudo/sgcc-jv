@@ -1,0 +1,3597 @@
+# =============================================================================
+# Ontología de mantenimiento y programación de flota — ETUL 4 S.A.
+# Empresa de transporte urbano de Lima. Rutas 1100-P, 1098-L, 1054 y 1488-C.
+# Versión 0.2.0. Incluye el módulo de trazabilidad del ciclo con modelos de lenguaje.
+# Cambie el IRI base http://example.org/tesis/etul4 por el de su institución antes de publicar.
+# =============================================================================
+@prefix etul: <http://example.org/tesis/etul4#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<http://example.org/tesis/etul4> a owl:Ontology ;
+    dcterms:title "Ontología de mantenimiento y programación de flota de transporte urbano"@es ;
+    dcterms:description "Modela la flota de buses, las rutas y su cobertura, el plan y la ejecución del mantenimiento, los documentos con vigencia, el conocimiento del programador y la trazabilidad de los hechos extraídos por modelos de lenguaje."@es ;
+    dcterms:created "2026-09-11"^^xsd:date ;
+    owl:versionInfo "0.2.0" .
+
+# -----------------------------------------------------------------------------
+# 1. Clases núcleo
+# -----------------------------------------------------------------------------
+etul:Vehiculo a owl:Class ;
+    rdfs:label "Vehículo"@es ;
+    rdfs:comment "Unidad de la flota de transporte urbano sujeta a mantenimiento y programación."@es .
+
+etul:Ruta a owl:Class ;
+    rdfs:label "Ruta"@es ;
+    rdfs:comment "Ruta autorizada que opera la empresa, con su recorrido, longitud y tiempo de ciclo."@es .
+
+etul:AsignacionRuta a owl:Class ;
+    rdfs:label "Asignación de ruta"@es ;
+    rdfs:comment "Asignación de un vehículo y un conductor a una ruta en una fecha y turno."@es .
+
+etul:DocumentoVehicular a owl:Class ;
+    rdfs:label "Documento vehicular"@es ;
+    rdfs:comment "Documento con vigencia que habilita a la unidad a circular (SOAT, revisión técnica, autorización)."@es .
+
+etul:Lectura a owl:Class ;
+    rdfs:label "Lectura"@es ;
+    rdfs:comment "Medición de uso de un vehículo (odómetro) en una fecha."@es .
+
+etul:RegistroEstado a owl:Class ;
+    rdfs:label "Registro de estado"@es ;
+    rdfs:comment "Periodo en que un vehículo permaneció en un estado operativo; base del cálculo de disponibilidad."@es .
+
+etul:Persona a owl:Class ;
+    rdfs:label "Persona"@es ;
+    rdfs:comment "Persona que participa en la operación, el mantenimiento o la captura de conocimiento."@es .
+
+etul:Tecnico a owl:Class ;
+    rdfs:label "Técnico"@es ;
+    rdfs:comment "Persona que ejecuta trabajos de mantenimiento."@es ;
+    rdfs:subClassOf etul:Persona .
+
+etul:Conductor a owl:Class ;
+    rdfs:label "Conductor"@es ;
+    rdfs:comment "Persona que opera un vehículo en ruta y reporta incidencias."@es ;
+    rdfs:subClassOf etul:Persona .
+
+etul:Experto a owl:Class ;
+    rdfs:label "Experto"@es ;
+    rdfs:comment "Persona cuyo conocimiento se captura como reglas (jefe de mantenimiento, programador, etc.)."@es ;
+    rdfs:subClassOf etul:Persona .
+
+etul:Taller a owl:Class ;
+    rdfs:label "Taller"@es ;
+    rdfs:comment "Instalación propia o externa donde se ejecutan mantenimientos."@es .
+
+etul:Bahia a owl:Class ;
+    rdfs:label "Bahía"@es ;
+    rdfs:comment "Espacio de trabajo del taller (bahía, fosa o elevador) con capacidad limitada."@es .
+
+etul:Repuesto a owl:Class ;
+    rdfs:label "Repuesto"@es ;
+    rdfs:comment "Artículo de inventario utilizado en mantenimientos."@es .
+
+etul:PlanMantenimiento a owl:Class ;
+    rdfs:label "Plan de mantenimiento"@es ;
+    rdfs:comment "Conjunto de tareas programadas que aplica a una o más categorías de vehículo."@es .
+
+etul:TareaProgramada a owl:Class ;
+    rdfs:label "Tarea programada"@es ;
+    rdfs:comment "Actividad del plan con su intervalo por kilómetros o días."@es .
+
+etul:OrdenTrabajo a owl:Class ;
+    rdfs:label "Orden de trabajo"@es ;
+    rdfs:comment "Trabajo de mantenimiento programado o ejecutado sobre un vehículo."@es .
+
+etul:ConsumoRepuesto a owl:Class ;
+    rdfs:label "Consumo de repuesto"@es ;
+    rdfs:comment "Relación n-aria entre una orden de trabajo, un repuesto y la cantidad requerida."@es .
+
+etul:Falla a owl:Class ;
+    rdfs:label "Falla"@es ;
+    rdfs:comment "Evento de avería reportado sobre un componente de un vehículo."@es .
+
+etul:SesionEntrevista a owl:Class ;
+    rdfs:label "Sesión de entrevista"@es ;
+    rdfs:comment "Sesión de captura de conocimiento con uno o más expertos."@es .
+
+etul:ReglaExperto a owl:Class ;
+    rdfs:label "Regla del experto"@es ;
+    rdfs:comment "Conocimiento explícito capturado del experto que orienta la programación."@es .
+
+etul:AjusteCalendario a owl:Class ;
+    rdfs:label "Ajuste de calendario"@es ;
+    rdfs:comment "Cambio realizado por una persona sobre la programación propuesta, con su motivo."@es .
+
+etul:ModeloLLM a owl:Class ;
+    rdfs:label "Modelo de lenguaje"@es ;
+    rdfs:comment "Modelo de lenguaje usado para extraer hechos o traducir preguntas a consultas."@es .
+
+etul:FuenteTextual a owl:Class ;
+    rdfs:label "Fuente textual"@es ;
+    rdfs:comment "Documento o transcripción de la que se extraen hechos: reporte de conductor, parte diario, entrevista."@es .
+
+etul:ExtraccionLLM a owl:Class ;
+    rdfs:label "Extracción del modelo"@es ;
+    rdfs:comment "Hecho candidato propuesto por un modelo de lenguaje a partir de una fuente, con su confianza y su estado de revisión."@es .
+
+etul:ConsultaNL a owl:Class ;
+    rdfs:label "Consulta en lenguaje natural"@es ;
+    rdfs:comment "Pregunta del usuario y la consulta SPARQL que el modelo generó para responderla."@es .
+
+etul:RespuestaGenerada a owl:Class ;
+    rdfs:label "Respuesta generada"@es ;
+    rdfs:comment "Respuesta redactada por el modelo a partir de los resultados de la consulta, con los individuos que la fundamentan."@es .
+
+etul:EvaluacionRespuesta a owl:Class ;
+    rdfs:label "Evaluación de respuesta"@es ;
+    rdfs:comment "Juicio humano sobre una respuesta generada; base de las métricas de la tesis."@es .
+
+etul:Catalogo a owl:Class ;
+    rdfs:label "Catálogo"@es ;
+    rdfs:comment "Superclase de las listas controladas de valores (particiones de valor)."@es .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( etul:Vehiculo etul:Ruta etul:AsignacionRuta etul:DocumentoVehicular etul:Lectura etul:RegistroEstado etul:Persona etul:Taller etul:Bahia etul:Repuesto etul:PlanMantenimiento etul:TareaProgramada etul:OrdenTrabajo etul:ConsumoRepuesto etul:Falla etul:SesionEntrevista etul:ReglaExperto etul:AjusteCalendario etul:ModeloLLM etul:FuenteTextual etul:ExtraccionLLM etul:ConsultaNL etul:RespuestaGenerada etul:EvaluacionRespuesta etul:Catalogo ) .
+
+# -----------------------------------------------------------------------------
+# 2. Catálogos (particiones de valor) e individuos
+# -----------------------------------------------------------------------------
+etul:CategoriaVehiculo a owl:Class ;
+    rdfs:label "Categoría de vehículo"@es ;
+    rdfs:comment "Clasificación de la flota según tamaño y uso. Confirmar con la empresa antes de poblar."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Omnibus etul:Microbus etul:Coaster etul:VehiculoApoyo ) ] .
+
+etul:Omnibus a owl:NamedIndividual , etul:CategoriaVehiculo ;
+    rdfs:label "Ómnibus urbano"@es .
+etul:Microbus a owl:NamedIndividual , etul:CategoriaVehiculo ;
+    rdfs:label "Microbús"@es .
+etul:Coaster a owl:NamedIndividual , etul:CategoriaVehiculo ;
+    rdfs:label "Coaster o minibús"@es .
+etul:VehiculoApoyo a owl:NamedIndividual , etul:CategoriaVehiculo ;
+    rdfs:label "Vehículo de apoyo y supervisión"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Omnibus etul:Microbus etul:Coaster etul:VehiculoApoyo ) .
+
+etul:TipoCombustible a owl:Class ;
+    rdfs:label "Tipo de combustible"@es ;
+    rdfs:comment "Fuente de energía de la unidad; condiciona tareas y certificados."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Diesel etul:GNV etul:Dual etul:Electrico ) ] .
+
+etul:Diesel a owl:NamedIndividual , etul:TipoCombustible ;
+    rdfs:label "Diésel"@es .
+etul:GNV a owl:NamedIndividual , etul:TipoCombustible ;
+    rdfs:label "Gas natural vehicular"@es .
+etul:Dual a owl:NamedIndividual , etul:TipoCombustible ;
+    rdfs:label "Dual diésel y GNV"@es .
+etul:Electrico a owl:NamedIndividual , etul:TipoCombustible ;
+    rdfs:label "Eléctrico"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Diesel etul:GNV etul:Dual etul:Electrico ) .
+
+etul:TipoMantenimiento a owl:Class ;
+    rdfs:label "Tipo de mantenimiento"@es ;
+    rdfs:comment "Naturaleza del trabajo de mantenimiento."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Preventivo etul:Correctivo etul:Predictivo etul:Inspeccion ) ] .
+
+etul:Preventivo a owl:NamedIndividual , etul:TipoMantenimiento ;
+    rdfs:label "Preventivo"@es .
+etul:Correctivo a owl:NamedIndividual , etul:TipoMantenimiento ;
+    rdfs:label "Correctivo"@es .
+etul:Predictivo a owl:NamedIndividual , etul:TipoMantenimiento ;
+    rdfs:label "Predictivo"@es .
+etul:Inspeccion a owl:NamedIndividual , etul:TipoMantenimiento ;
+    rdfs:label "Inspección"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Preventivo etul:Correctivo etul:Predictivo etul:Inspeccion ) .
+
+etul:TipoComponente a owl:Class ;
+    rdfs:label "Tipo de componente"@es ;
+    rdfs:comment "Sistema o componente del vehículo."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Motor etul:Transmision etul:Frenos etul:SistemaNeumatico etul:Neumaticos etul:SistemaElectrico etul:Suspension etul:Direccion etul:PuertasServicio etul:Carroceria etul:SistemaCombustible etul:Climatizacion ) ] .
+
+etul:Motor a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Motor"@es .
+etul:Transmision a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Transmisión"@es .
+etul:Frenos a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Frenos"@es .
+etul:SistemaNeumatico a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Sistema neumático"@es .
+etul:Neumaticos a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Neumáticos"@es .
+etul:SistemaElectrico a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Sistema eléctrico"@es .
+etul:Suspension a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Suspensión"@es .
+etul:Direccion a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Dirección"@es .
+etul:PuertasServicio a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Puertas de servicio"@es .
+etul:Carroceria a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Carrocería"@es .
+etul:SistemaCombustible a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Sistema de combustible"@es .
+etul:Climatizacion a owl:NamedIndividual , etul:TipoComponente ;
+    rdfs:label "Climatización"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Motor etul:Transmision etul:Frenos etul:SistemaNeumatico etul:Neumaticos etul:SistemaElectrico etul:Suspension etul:Direccion etul:PuertasServicio etul:Carroceria etul:SistemaCombustible etul:Climatizacion ) .
+
+etul:EstadoOperativo a owl:Class ;
+    rdfs:label "Estado operativo"@es ;
+    rdfs:comment "Estado de disponibilidad de un vehículo."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Operativo etul:EnTaller etul:EsperandoRepuesto etul:FueraDeServicio etul:DocumentoVencido ) ] .
+
+etul:Operativo a owl:NamedIndividual , etul:EstadoOperativo ;
+    rdfs:label "Operativo"@es .
+etul:EnTaller a owl:NamedIndividual , etul:EstadoOperativo ;
+    rdfs:label "En taller"@es .
+etul:EsperandoRepuesto a owl:NamedIndividual , etul:EstadoOperativo ;
+    rdfs:label "Esperando repuesto"@es .
+etul:FueraDeServicio a owl:NamedIndividual , etul:EstadoOperativo ;
+    rdfs:label "Fuera de servicio"@es .
+etul:DocumentoVencido a owl:NamedIndividual , etul:EstadoOperativo ;
+    rdfs:label "Retenido por documento vencido"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Operativo etul:EnTaller etul:EsperandoRepuesto etul:FueraDeServicio etul:DocumentoVencido ) .
+
+etul:EstadoOrden a owl:Class ;
+    rdfs:label "Estado de orden"@es ;
+    rdfs:comment "Etapa del ciclo de vida de una orden de trabajo."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Programada etul:EnEjecucion etul:BloqueadaPorRepuesto etul:Cerrada etul:Cancelada ) ] .
+
+etul:Programada a owl:NamedIndividual , etul:EstadoOrden ;
+    rdfs:label "Programada"@es .
+etul:EnEjecucion a owl:NamedIndividual , etul:EstadoOrden ;
+    rdfs:label "En ejecución"@es .
+etul:BloqueadaPorRepuesto a owl:NamedIndividual , etul:EstadoOrden ;
+    rdfs:label "Bloqueada por repuesto"@es .
+etul:Cerrada a owl:NamedIndividual , etul:EstadoOrden ;
+    rdfs:label "Cerrada"@es .
+etul:Cancelada a owl:NamedIndividual , etul:EstadoOrden ;
+    rdfs:label "Cancelada"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Programada etul:EnEjecucion etul:BloqueadaPorRepuesto etul:Cerrada etul:Cancelada ) .
+
+etul:Especialidad a owl:Class ;
+    rdfs:label "Especialidad"@es ;
+    rdfs:comment "Especialidad técnica requerida o dominada."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:EspMecanica etul:EspElectrica etul:EspNeumatica etul:EspFrenosSuspension etul:EspNeumaticos etul:EspCarroceria etul:EspGNV ) ] .
+
+etul:EspMecanica a owl:NamedIndividual , etul:Especialidad ;
+    rdfs:label "Mecánica general"@es .
+etul:EspElectrica a owl:NamedIndividual , etul:Especialidad ;
+    rdfs:label "Electricidad automotriz"@es .
+etul:EspNeumatica a owl:NamedIndividual , etul:Especialidad ;
+    rdfs:label "Sistemas neumáticos"@es .
+etul:EspFrenosSuspension a owl:NamedIndividual , etul:Especialidad ;
+    rdfs:label "Frenos y suspensión"@es .
+etul:EspNeumaticos a owl:NamedIndividual , etul:Especialidad ;
+    rdfs:label "Neumáticos"@es .
+etul:EspCarroceria a owl:NamedIndividual , etul:Especialidad ;
+    rdfs:label "Carrocería y planchado"@es .
+etul:EspGNV a owl:NamedIndividual , etul:Especialidad ;
+    rdfs:label "Sistemas de gas natural"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:EspMecanica etul:EspElectrica etul:EspNeumatica etul:EspFrenosSuspension etul:EspNeumaticos etul:EspCarroceria etul:EspGNV ) .
+
+etul:Turno a owl:Class ;
+    rdfs:label "Turno"@es ;
+    rdfs:comment "Turno de trabajo u operación."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:TurnoManana etul:TurnoTarde etul:TurnoNoche ) ] .
+
+etul:TurnoManana a owl:NamedIndividual , etul:Turno ;
+    rdfs:label "Mañana"@es .
+etul:TurnoTarde a owl:NamedIndividual , etul:Turno ;
+    rdfs:label "Tarde"@es .
+etul:TurnoNoche a owl:NamedIndividual , etul:Turno ;
+    rdfs:label "Noche"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:TurnoManana etul:TurnoTarde etul:TurnoNoche ) .
+
+etul:TipoLectura a owl:Class ;
+    rdfs:label "Tipo de lectura"@es ;
+    rdfs:comment "Instrumento de medición de uso."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Odometro etul:Horometro ) ] .
+
+etul:Odometro a owl:NamedIndividual , etul:TipoLectura ;
+    rdfs:label "Odómetro (km)"@es .
+etul:Horometro a owl:NamedIndividual , etul:TipoLectura ;
+    rdfs:label "Horómetro (horas)"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Odometro etul:Horometro ) .
+
+etul:TipoDocumento a owl:Class ;
+    rdfs:label "Tipo de documento"@es ;
+    rdfs:comment "Documento con vigencia exigido para circular."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:SOAT etul:RevisionTecnica etul:AutorizacionRuta etul:CertificadoGNV etul:PolizaResponsabilidad ) ] .
+
+etul:SOAT a owl:NamedIndividual , etul:TipoDocumento ;
+    rdfs:label "SOAT"@es .
+etul:RevisionTecnica a owl:NamedIndividual , etul:TipoDocumento ;
+    rdfs:label "Revisión técnica vehicular"@es .
+etul:AutorizacionRuta a owl:NamedIndividual , etul:TipoDocumento ;
+    rdfs:label "Autorización de ruta"@es .
+etul:CertificadoGNV a owl:NamedIndividual , etul:TipoDocumento ;
+    rdfs:label "Certificado de conversión o inspección GNV"@es .
+etul:PolizaResponsabilidad a owl:NamedIndividual , etul:TipoDocumento ;
+    rdfs:label "Póliza de responsabilidad civil"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:SOAT etul:RevisionTecnica etul:AutorizacionRuta etul:CertificadoGNV etul:PolizaResponsabilidad ) .
+
+etul:Severidad a owl:Class ;
+    rdfs:label "Severidad"@es ;
+    rdfs:comment "Gravedad de una falla."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:SeveridadBaja etul:SeveridadMedia etul:SeveridadAlta etul:SeveridadCritica ) ] .
+
+etul:SeveridadBaja a owl:NamedIndividual , etul:Severidad ;
+    rdfs:label "Baja"@es .
+etul:SeveridadMedia a owl:NamedIndividual , etul:Severidad ;
+    rdfs:label "Media"@es .
+etul:SeveridadAlta a owl:NamedIndividual , etul:Severidad ;
+    rdfs:label "Alta"@es .
+etul:SeveridadCritica a owl:NamedIndividual , etul:Severidad ;
+    rdfs:label "Crítica"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:SeveridadBaja etul:SeveridadMedia etul:SeveridadAlta etul:SeveridadCritica ) .
+
+etul:TipoRegla a owl:Class ;
+    rdfs:label "Tipo de regla"@es ;
+    rdfs:comment "Clasificación del conocimiento experto según cómo lo usa el algoritmo."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:ReglaDura etul:ReglaPreferencia etul:ReglaPrioridad etul:ReglaHeuristica ) ] .
+
+etul:ReglaDura a owl:NamedIndividual , etul:TipoRegla ;
+    rdfs:label "Restricción dura"@es .
+etul:ReglaPreferencia a owl:NamedIndividual , etul:TipoRegla ;
+    rdfs:label "Preferencia"@es .
+etul:ReglaPrioridad a owl:NamedIndividual , etul:TipoRegla ;
+    rdfs:label "Regla de prioridad"@es .
+etul:ReglaHeuristica a owl:NamedIndividual , etul:TipoRegla ;
+    rdfs:label "Heurística"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:ReglaDura etul:ReglaPreferencia etul:ReglaPrioridad etul:ReglaHeuristica ) .
+
+etul:EstadoValidacion a owl:Class ;
+    rdfs:label "Estado de validación"@es ;
+    rdfs:comment "Resultado de la validación de una regla con los expertos."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Pendiente etul:Aprobada etul:Ajustar etul:Descartada ) ] .
+
+etul:Pendiente a owl:NamedIndividual , etul:EstadoValidacion ;
+    rdfs:label "Pendiente"@es .
+etul:Aprobada a owl:NamedIndividual , etul:EstadoValidacion ;
+    rdfs:label "Aprobada"@es .
+etul:Ajustar a owl:NamedIndividual , etul:EstadoValidacion ;
+    rdfs:label "Ajustar"@es .
+etul:Descartada a owl:NamedIndividual , etul:EstadoValidacion ;
+    rdfs:label "Descartada"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Pendiente etul:Aprobada etul:Ajustar etul:Descartada ) .
+
+etul:MotivoAjuste a owl:Class ;
+    rdfs:label "Motivo de ajuste"@es ;
+    rdfs:comment "Razón por la que se modificó la programación."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:MotivoRepuesto etul:MotivoTecnico etul:MotivoOperacion etul:MotivoFallaNueva etul:MotivoDocumento etul:MotivoCriterioExperto ) ] .
+
+etul:MotivoRepuesto a owl:NamedIndividual , etul:MotivoAjuste ;
+    rdfs:label "Falta de repuesto"@es .
+etul:MotivoTecnico a owl:NamedIndividual , etul:MotivoAjuste ;
+    rdfs:label "Técnico no disponible"@es .
+etul:MotivoOperacion a owl:NamedIndividual , etul:MotivoAjuste ;
+    rdfs:label "Necesidad de la operación o cobertura de ruta"@es .
+etul:MotivoFallaNueva a owl:NamedIndividual , etul:MotivoAjuste ;
+    rdfs:label "Falla nueva o urgencia"@es .
+etul:MotivoDocumento a owl:NamedIndividual , etul:MotivoAjuste ;
+    rdfs:label "Documento por vencer"@es .
+etul:MotivoCriterioExperto a owl:NamedIndividual , etul:MotivoAjuste ;
+    rdfs:label "Criterio del experto"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:MotivoRepuesto etul:MotivoTecnico etul:MotivoOperacion etul:MotivoFallaNueva etul:MotivoDocumento etul:MotivoCriterioExperto ) .
+
+etul:RolExperto a owl:Class ;
+    rdfs:label "Rol del experto"@es ;
+    rdfs:comment "Rol de la persona entrevistada."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:RolJefeMantenimiento etul:RolProgramadorFlota etul:RolTecnicoSenior etul:RolJefeOperaciones etul:RolConductor ) ] .
+
+etul:RolJefeMantenimiento a owl:NamedIndividual , etul:RolExperto ;
+    rdfs:label "Jefe de mantenimiento"@es .
+etul:RolProgramadorFlota a owl:NamedIndividual , etul:RolExperto ;
+    rdfs:label "Programador de flota"@es .
+etul:RolTecnicoSenior a owl:NamedIndividual , etul:RolExperto ;
+    rdfs:label "Técnico senior"@es .
+etul:RolJefeOperaciones a owl:NamedIndividual , etul:RolExperto ;
+    rdfs:label "Jefe de operaciones"@es .
+etul:RolConductor a owl:NamedIndividual , etul:RolExperto ;
+    rdfs:label "Conductor"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:RolJefeMantenimiento etul:RolProgramadorFlota etul:RolTecnicoSenior etul:RolJefeOperaciones etul:RolConductor ) .
+
+etul:TipoFuente a owl:Class ;
+    rdfs:label "Tipo de fuente textual"@es ;
+    rdfs:comment "Origen del texto del que se extraen hechos."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:ReporteConductor etul:ParteDiario etul:SesionChatbot etul:TextoOrdenTrabajo etul:TranscripcionEntrevista etul:ActaComite etul:ManualFabricante etul:ReporteIncidente ) ] .
+
+etul:ReporteConductor a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Reporte de conductor"@es .
+etul:ParteDiario a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Parte diario de operación"@es .
+etul:SesionChatbot a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Sesión con el asistente de entrevista"@es .
+etul:TextoOrdenTrabajo a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Texto libre de orden de trabajo"@es .
+etul:TranscripcionEntrevista a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Transcripción de entrevista"@es .
+etul:ActaComite a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Acta de comité"@es .
+etul:ManualFabricante a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Manual del fabricante"@es .
+etul:ReporteIncidente a owl:NamedIndividual , etul:TipoFuente ;
+    rdfs:label "Reporte de incidente"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:ReporteConductor etul:ParteDiario etul:SesionChatbot etul:TextoOrdenTrabajo etul:TranscripcionEntrevista etul:ActaComite etul:ManualFabricante etul:ReporteIncidente ) .
+
+etul:EstadoExtraccion a owl:Class ;
+    rdfs:label "Estado de extracción"@es ;
+    rdfs:comment "Resultado de la revisión humana sobre un hecho propuesto por el modelo."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:ExtPropuesta etul:ExtAceptada etul:ExtCorregida etul:ExtRechazada ) ] .
+
+etul:ExtPropuesta a owl:NamedIndividual , etul:EstadoExtraccion ;
+    rdfs:label "Propuesta"@es .
+etul:ExtAceptada a owl:NamedIndividual , etul:EstadoExtraccion ;
+    rdfs:label "Aceptada"@es .
+etul:ExtCorregida a owl:NamedIndividual , etul:EstadoExtraccion ;
+    rdfs:label "Aceptada con corrección"@es .
+etul:ExtRechazada a owl:NamedIndividual , etul:EstadoExtraccion ;
+    rdfs:label "Rechazada"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:ExtPropuesta etul:ExtAceptada etul:ExtCorregida etul:ExtRechazada ) .
+
+etul:VeredictoEvaluacion a owl:Class ;
+    rdfs:label "Veredicto de evaluación"@es ;
+    rdfs:comment "Juicio humano sobre una respuesta generada."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:Correcta etul:ParcialmenteCorrecta etul:Incorrecta etul:SinRespuesta ) ] .
+
+etul:Correcta a owl:NamedIndividual , etul:VeredictoEvaluacion ;
+    rdfs:label "Correcta"@es .
+etul:ParcialmenteCorrecta a owl:NamedIndividual , etul:VeredictoEvaluacion ;
+    rdfs:label "Parcialmente correcta"@es .
+etul:Incorrecta a owl:NamedIndividual , etul:VeredictoEvaluacion ;
+    rdfs:label "Incorrecta"@es .
+etul:SinRespuesta a owl:NamedIndividual , etul:VeredictoEvaluacion ;
+    rdfs:label "El sistema no pudo responder"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:Correcta etul:ParcialmenteCorrecta etul:Incorrecta etul:SinRespuesta ) .
+
+etul:TipoTarea a owl:Class ;
+    rdfs:label "Tarea del modelo"@es ;
+    rdfs:comment "Para qué se usó el modelo de lenguaje."@es ;
+    rdfs:subClassOf etul:Catalogo ;
+    owl:equivalentClass [ a owl:Class ; owl:oneOf ( etul:TareaExtraccion etul:TareaTraduccion etul:TareaRedaccion ) ] .
+
+etul:TareaExtraccion a owl:NamedIndividual , etul:TipoTarea ;
+    rdfs:label "Extracción de hechos"@es .
+etul:TareaTraduccion a owl:NamedIndividual , etul:TipoTarea ;
+    rdfs:label "Traducción de pregunta a SPARQL"@es .
+etul:TareaRedaccion a owl:NamedIndividual , etul:TipoTarea ;
+    rdfs:label "Redacción de la respuesta"@es .
+
+[] a owl:AllDifferent ;
+    owl:distinctMembers ( etul:TareaExtraccion etul:TareaTraduccion etul:TareaRedaccion ) .
+
+[] a owl:AllDisjointClasses ;
+    owl:members ( etul:CategoriaVehiculo etul:TipoCombustible etul:TipoMantenimiento etul:TipoComponente etul:EstadoOperativo etul:EstadoOrden etul:Especialidad etul:Turno etul:TipoLectura etul:TipoDocumento etul:Severidad etul:TipoRegla etul:EstadoValidacion etul:MotivoAjuste etul:RolExperto etul:TipoFuente etul:EstadoExtraccion etul:VeredictoEvaluacion etul:TipoTarea ) .
+
+# -----------------------------------------------------------------------------
+# 3. Propiedades de objeto
+# -----------------------------------------------------------------------------
+etul:categoria a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "categoría"@es ;
+    rdfs:comment "Categoría operativa del vehículo."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:CategoriaVehiculo .
+
+etul:combustible a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "combustible"@es ;
+    rdfs:comment "Fuente de energía de la unidad."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:TipoCombustible .
+
+etul:asignadoATaller a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "asignado a taller"@es ;
+    rdfs:comment "Taller responsable del vehículo."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:Taller .
+
+etul:tienePlan a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "tiene plan"@es ;
+    rdfs:comment "Plan de mantenimiento vigente del vehículo."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:PlanMantenimiento .
+
+etul:estadoActual a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "estado actual"@es ;
+    rdfs:comment "Estado operativo vigente del vehículo."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:EstadoOperativo .
+
+etul:rutaHabitual a owl:ObjectProperty ;
+    rdfs:label "ruta habitual"@es ;
+    rdfs:comment "Ruta en la que opera normalmente la unidad."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:Ruta .
+
+etul:rutaAutorizadaPara a owl:ObjectProperty ;
+    rdfs:label "ruta autorizada para"@es ;
+    rdfs:comment "Categorías de vehículo que pueden cubrir la ruta."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range etul:CategoriaVehiculo .
+
+etul:asignacionDeVehiculo a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "asignación de vehículo"@es ;
+    rdfs:comment "Vehículo asignado."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range etul:Vehiculo .
+
+etul:tieneAsignacion a owl:ObjectProperty ;
+    rdfs:label "tiene asignación"@es ;
+    owl:inverseOf etul:asignacionDeVehiculo ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:AsignacionRuta .
+
+etul:asignacionEnRuta a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "asignación en ruta"@es ;
+    rdfs:comment "Ruta cubierta."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range etul:Ruta .
+
+etul:tieneAsignacionDeUnidad a owl:ObjectProperty ;
+    rdfs:label "tiene asignación de unidad"@es ;
+    owl:inverseOf etul:asignacionEnRuta ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range etul:AsignacionRuta .
+
+etul:asignacionAConductor a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "asignación a conductor"@es ;
+    rdfs:comment "Conductor que opera la unidad."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range etul:Conductor .
+
+etul:asignacionEnTurno a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "asignación en turno"@es ;
+    rdfs:comment "Turno de la asignación."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range etul:Turno .
+
+etul:documentoDeVehiculo a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "documento de vehículo"@es ;
+    rdfs:comment "Vehículo al que pertenece el documento."@es ;
+    rdfs:domain etul:DocumentoVehicular ;
+    rdfs:range etul:Vehiculo .
+
+etul:tieneDocumento a owl:ObjectProperty ;
+    rdfs:label "tiene documento"@es ;
+    owl:inverseOf etul:documentoDeVehiculo ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:DocumentoVehicular .
+
+etul:tipoDocumento a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "tipo de documento"@es ;
+    rdfs:comment "Clase de documento."@es ;
+    rdfs:domain etul:DocumentoVehicular ;
+    rdfs:range etul:TipoDocumento .
+
+etul:lecturaDeVehiculo a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "lectura de vehículo"@es ;
+    rdfs:comment "Vehículo medido."@es ;
+    rdfs:domain etul:Lectura ;
+    rdfs:range etul:Vehiculo .
+
+etul:tipoLectura a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "tipo de lectura"@es ;
+    rdfs:comment "Instrumento de la lectura."@es ;
+    rdfs:domain etul:Lectura ;
+    rdfs:range etul:TipoLectura .
+
+etul:estadoDeVehiculo a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "estado de vehículo"@es ;
+    rdfs:comment "Vehículo al que corresponde el registro."@es ;
+    rdfs:domain etul:RegistroEstado ;
+    rdfs:range etul:Vehiculo .
+
+etul:estadoRegistrado a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "estado registrado"@es ;
+    rdfs:comment "Estado durante el periodo."@es ;
+    rdfs:domain etul:RegistroEstado ;
+    rdfs:range etul:EstadoOperativo .
+
+etul:ordenRelacionada a owl:ObjectProperty ;
+    rdfs:label "orden relacionada"@es ;
+    rdfs:comment "Orden que originó el periodo, si aplica."@es ;
+    rdfs:domain etul:RegistroEstado ;
+    rdfs:range etul:OrdenTrabajo .
+
+etul:planParaCategoria a owl:ObjectProperty ;
+    rdfs:label "plan para categoría"@es ;
+    rdfs:comment "Categorías a las que aplica el plan."@es ;
+    rdfs:domain etul:PlanMantenimiento ;
+    rdfs:range etul:CategoriaVehiculo .
+
+etul:tareaDePlan a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "tarea de plan"@es ;
+    rdfs:comment "Plan al que pertenece la tarea."@es ;
+    rdfs:domain etul:TareaProgramada ;
+    rdfs:range etul:PlanMantenimiento .
+
+etul:tieneTarea a owl:ObjectProperty ;
+    rdfs:label "tiene tarea"@es ;
+    owl:inverseOf etul:tareaDePlan ;
+    rdfs:domain etul:PlanMantenimiento ;
+    rdfs:range etul:TareaProgramada .
+
+etul:tipoMantenimiento a owl:ObjectProperty ;
+    rdfs:label "tipo de mantenimiento"@es ;
+    rdfs:comment "Tipo de mantenimiento. Se usa en TareaProgramada, OrdenTrabajo y ReglaExperto."@es ;
+    rdfs:range etul:TipoMantenimiento .
+
+etul:tipoComponente a owl:ObjectProperty ;
+    rdfs:label "tipo de componente"@es ;
+    rdfs:comment "Componente involucrado. Se usa en TareaProgramada, OrdenTrabajo, Falla, Repuesto y ReglaExperto."@es ;
+    rdfs:range etul:TipoComponente .
+
+etul:aplicaACategoria a owl:ObjectProperty ;
+    rdfs:label "aplica a categoría"@es ;
+    rdfs:comment "Categorías de vehículo compatibles. Se usa en Bahia, Repuesto y ReglaExperto."@es ;
+    rdfs:range etul:CategoriaVehiculo .
+
+etul:requiereEspecialidad a owl:ObjectProperty ;
+    rdfs:label "requiere especialidad"@es ;
+    rdfs:comment "Especialidad técnica necesaria."@es ;
+    rdfs:domain etul:TareaProgramada ;
+    rdfs:range etul:Especialidad .
+
+etul:ordenDeVehiculo a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "orden de vehículo"@es ;
+    rdfs:comment "Vehículo intervenido."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range etul:Vehiculo .
+
+etul:tieneOrden a owl:ObjectProperty ;
+    rdfs:label "tiene orden"@es ;
+    owl:inverseOf etul:ordenDeVehiculo ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range etul:OrdenTrabajo .
+
+etul:estadoOrden a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "estado de orden"@es ;
+    rdfs:comment "Estado actual de la orden."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range etul:EstadoOrden .
+
+etul:asignadaATecnico a owl:ObjectProperty ;
+    rdfs:label "asignada a técnico"@es ;
+    rdfs:comment "Técnicos asignados."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range etul:Tecnico .
+
+etul:ejecutadaEnBahia a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "ejecutada en bahía"@es ;
+    rdfs:comment "Bahía asignada."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range etul:Bahia .
+
+etul:generadaPorTarea a owl:ObjectProperty ;
+    rdfs:label "generada por tarea"@es ;
+    rdfs:comment "Tarea del plan que originó la orden."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range etul:TareaProgramada .
+
+etul:originadaPorFalla a owl:ObjectProperty ;
+    rdfs:label "originada por falla"@es ;
+    rdfs:comment "Falla que originó la orden correctiva."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range etul:Falla .
+
+etul:consumoEnOrden a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "consumo en orden"@es ;
+    rdfs:comment "Orden que requiere el repuesto."@es ;
+    rdfs:domain etul:ConsumoRepuesto ;
+    rdfs:range etul:OrdenTrabajo .
+
+etul:tieneConsumo a owl:ObjectProperty ;
+    rdfs:label "tiene consumo"@es ;
+    owl:inverseOf etul:consumoEnOrden ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range etul:ConsumoRepuesto .
+
+etul:repuestoConsumido a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "repuesto consumido"@es ;
+    rdfs:comment "Repuesto requerido o utilizado."@es ;
+    rdfs:domain etul:ConsumoRepuesto ;
+    rdfs:range etul:Repuesto .
+
+etul:fallaEnVehiculo a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "falla en vehículo"@es ;
+    rdfs:comment "Vehículo donde ocurrió la falla."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range etul:Vehiculo .
+
+etul:severidad a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "severidad"@es ;
+    rdfs:comment "Gravedad de la falla."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range etul:Severidad .
+
+etul:reportadaPorConductor a owl:ObjectProperty ;
+    rdfs:label "reportada por conductor"@es ;
+    rdfs:comment "Conductor que reportó la falla."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range etul:Conductor .
+
+etul:fallaEnRuta a owl:ObjectProperty ;
+    rdfs:label "falla en ruta"@es ;
+    rdfs:comment "Ruta en la que se detectó la falla."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range etul:Ruta .
+
+etul:bahiaDeTaller a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "bahía de taller"@es ;
+    rdfs:comment "Taller al que pertenece la bahía."@es ;
+    rdfs:domain etul:Bahia ;
+    rdfs:range etul:Taller .
+
+etul:tieneEspecialidad a owl:ObjectProperty ;
+    rdfs:label "tiene especialidad"@es ;
+    rdfs:comment "Especialidades que domina el técnico."@es ;
+    rdfs:domain etul:Tecnico ;
+    rdfs:range etul:Especialidad .
+
+etul:trabajaEnTurno a owl:ObjectProperty ;
+    rdfs:label "trabaja en turno"@es ;
+    rdfs:comment "Turnos asignados al técnico."@es ;
+    rdfs:domain etul:Tecnico ;
+    rdfs:range etul:Turno .
+
+etul:tecnicoDeTaller a owl:ObjectProperty ;
+    rdfs:label "técnico de taller"@es ;
+    rdfs:comment "Taller donde trabaja el técnico."@es ;
+    rdfs:domain etul:Tecnico ;
+    rdfs:range etul:Taller .
+
+etul:conductorHabilitadoEn a owl:ObjectProperty ;
+    rdfs:label "habilitado en ruta"@es ;
+    rdfs:comment "Rutas que el conductor está autorizado a operar."@es ;
+    rdfs:domain etul:Conductor ;
+    rdfs:range etul:Ruta .
+
+etul:rolExperto a owl:ObjectProperty ;
+    rdfs:label "rol del experto"@es ;
+    rdfs:comment "Rol de la persona entrevistada."@es ;
+    rdfs:domain etul:Experto ;
+    rdfs:range etul:RolExperto .
+
+etul:entrevistado a owl:ObjectProperty ;
+    rdfs:label "entrevistado"@es ;
+    rdfs:comment "Expertos que participaron en la sesión."@es ;
+    rdfs:domain etul:SesionEntrevista ;
+    rdfs:range etul:Experto .
+
+etul:tipoRegla a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "tipo de regla"@es ;
+    rdfs:comment "Clasificación de la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range etul:TipoRegla .
+
+etul:estadoValidacion a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "estado de validación"@es ;
+    rdfs:comment "Resultado de la validación."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range etul:EstadoValidacion .
+
+etul:fuenteExperto a owl:ObjectProperty ;
+    rdfs:label "fuente experto"@es ;
+    rdfs:comment "Experto que expresó la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range etul:Experto .
+
+etul:capturadaEnSesion a owl:ObjectProperty ;
+    rdfs:label "capturada en sesión"@es ;
+    rdfs:comment "Sesión donde se capturó."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range etul:SesionEntrevista .
+
+etul:validadaPor a owl:ObjectProperty ;
+    rdfs:label "validada por"@es ;
+    rdfs:comment "Experto que validó la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range etul:Experto .
+
+etul:aplicaARuta a owl:ObjectProperty ;
+    rdfs:label "aplica a ruta"@es ;
+    rdfs:comment "Rutas a las que se limita la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range etul:Ruta .
+
+etul:ajusteDeOrden a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "ajuste de orden"@es ;
+    rdfs:comment "Orden reprogramada."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range etul:OrdenTrabajo .
+
+etul:motivoAjuste a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "motivo de ajuste"@es ;
+    rdfs:comment "Motivo del cambio."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range etul:MotivoAjuste .
+
+etul:realizadoPor a owl:ObjectProperty ;
+    rdfs:label "realizado por"@es ;
+    rdfs:comment "Persona que hizo el ajuste."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range etul:Persona .
+
+etul:reglaCandidata a owl:ObjectProperty ;
+    rdfs:label "regla candidata"@es ;
+    rdfs:comment "Regla que explica o formaliza el ajuste."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range etul:ReglaExperto .
+
+etul:tareaDelModelo a owl:ObjectProperty ;
+    rdfs:label "tarea del modelo"@es ;
+    rdfs:comment "Para qué se usa el modelo en el experimento."@es ;
+    rdfs:domain etul:ModeloLLM ;
+    rdfs:range etul:TipoTarea .
+
+etul:tipoFuente a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "tipo de fuente"@es ;
+    rdfs:comment "Origen del texto."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range etul:TipoFuente .
+
+etul:fuenteSobreVehiculo a owl:ObjectProperty ;
+    rdfs:label "fuente sobre vehículo"@es ;
+    rdfs:comment "Vehículo al que se refiere el texto, si aplica."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range etul:Vehiculo .
+
+etul:fuenteRedactadaPor a owl:ObjectProperty ;
+    rdfs:label "redactada por"@es ;
+    rdfs:comment "Persona que produjo el texto."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range etul:Persona .
+
+etul:fuenteDeSesion a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "transcripción de sesión"@es ;
+    rdfs:comment "Sesión de entrevista transcrita, si aplica."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range etul:SesionEntrevista .
+
+etul:derivadaDeFuente a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "derivada de fuente"@es ;
+    rdfs:comment "Fuente textual de la que se extrajo el hecho."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range etul:FuenteTextual .
+
+etul:generoExtraccion a owl:ObjectProperty ;
+    rdfs:label "generó extracción"@es ;
+    owl:inverseOf etul:derivadaDeFuente ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range etul:ExtraccionLLM .
+
+etul:generadaPorModelo a owl:ObjectProperty ;
+    rdfs:label "generada por modelo"@es ;
+    rdfs:comment "Modelo de lenguaje que produjo el resultado. Se usa en ExtraccionLLM, ConsultaNL y RespuestaGenerada."@es ;
+    rdfs:range etul:ModeloLLM .
+
+etul:estadoExtraccion a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "estado de extracción"@es ;
+    rdfs:comment "Resultado de la revisión humana."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range etul:EstadoExtraccion .
+
+etul:revisadaPor a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "revisada por"@es ;
+    rdfs:comment "Persona que revisó el hecho propuesto."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range etul:Persona .
+
+etul:materializadaEn a owl:ObjectProperty ;
+    rdfs:label "materializada en"@es ;
+    rdfs:comment "Individuo del grafo que se creó o actualizó a partir del hecho aceptado."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range owl:Thing .
+
+etul:respondePreguntaDe a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "reformulación de"@es ;
+    rdfs:comment "Consulta previa que esta reformula, si hubo varios intentos."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range etul:ConsultaNL .
+
+etul:respondeConsulta a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "responde consulta"@es ;
+    rdfs:comment "Consulta que originó la respuesta."@es ;
+    rdfs:domain etul:RespuestaGenerada ;
+    rdfs:range etul:ConsultaNL .
+
+etul:tieneRespuesta a owl:ObjectProperty ;
+    rdfs:label "tiene respuesta"@es ;
+    owl:inverseOf etul:respondeConsulta ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range etul:RespuestaGenerada .
+
+etul:fundamentadaEn a owl:ObjectProperty ;
+    rdfs:label "fundamentada en"@es ;
+    rdfs:comment "Individuos del grafo citados como evidencia de la respuesta."@es ;
+    rdfs:domain etul:RespuestaGenerada ;
+    rdfs:range owl:Thing .
+
+etul:evaluaRespuesta a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "evalúa respuesta"@es ;
+    rdfs:comment "Respuesta evaluada."@es ;
+    rdfs:domain etul:EvaluacionRespuesta ;
+    rdfs:range etul:RespuestaGenerada .
+
+etul:tieneEvaluacion a owl:ObjectProperty ;
+    rdfs:label "tiene evaluación"@es ;
+    owl:inverseOf etul:evaluaRespuesta ;
+    rdfs:domain etul:RespuestaGenerada ;
+    rdfs:range etul:EvaluacionRespuesta .
+
+etul:veredicto a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "veredicto"@es ;
+    rdfs:comment "Juicio del evaluador."@es ;
+    rdfs:domain etul:EvaluacionRespuesta ;
+    rdfs:range etul:VeredictoEvaluacion .
+
+etul:evaluadaPor a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "evaluada por"@es ;
+    rdfs:comment "Persona que evaluó la respuesta."@es ;
+    rdfs:domain etul:EvaluacionRespuesta ;
+    rdfs:range etul:Persona .
+
+# -----------------------------------------------------------------------------
+# 4. Propiedades de datos
+# -----------------------------------------------------------------------------
+etul:placa a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "placa"@es ;
+    rdfs:comment "Placa de la unidad."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:string .
+
+etul:codigoInterno a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "código interno"@es ;
+    rdfs:comment "Número de padrón o código con el que la empresa identifica la unidad."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:string .
+
+etul:marca a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "marca"@es ;
+    rdfs:comment "Marca del chasis."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:string .
+
+etul:modelo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "modelo"@es ;
+    rdfs:comment "Modelo del chasis."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:string .
+
+etul:carrocero a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "carrocero"@es ;
+    rdfs:comment "Empresa que fabricó la carrocería."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:string .
+
+etul:anioFabricacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "año de fabricación"@es ;
+    rdfs:comment "Año de fabricación."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:integer .
+
+etul:fechaAlta a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de alta"@es ;
+    rdfs:comment "Fecha de incorporación a la flota."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:date .
+
+etul:kmActual a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "km actual"@es ;
+    rdfs:comment "Kilometraje vigente (última lectura de odómetro)."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:decimal .
+
+etul:capacidadPasajeros a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "capacidad de pasajeros"@es ;
+    rdfs:comment "Número de pasajeros autorizado."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:integer .
+
+etul:esCritico a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "es crítico"@es ;
+    rdfs:comment "Indica si la unidad es crítica para cubrir la programación."@es ;
+    rdfs:domain etul:Vehiculo ;
+    rdfs:range xsd:boolean .
+
+etul:codigoRuta a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "código de ruta"@es ;
+    rdfs:comment "Código autorizado de la ruta."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:string .
+
+etul:denominacionRuta a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "denominación"@es ;
+    rdfs:comment "Letra o nombre comercial de la ruta."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:string .
+
+etul:longitudKm a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "longitud (km)"@es ;
+    rdfs:comment "Longitud del recorrido de ida y vuelta."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:decimal .
+
+etul:tiempoCicloMinutos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "tiempo de ciclo (min)"@es ;
+    rdfs:comment "Duración aproximada de un ciclo completo."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:integer .
+
+etul:terminalOrigen a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "terminal de origen"@es ;
+    rdfs:comment "Punto de inicio del itinerario de ida."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:string .
+
+etul:terminalDestino a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "terminal de destino"@es ;
+    rdfs:comment "Punto final del itinerario de ida."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:string .
+
+etul:unidadesRequeridas a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "unidades requeridas"@es ;
+    rdfs:comment "Unidades necesarias para cubrir la frecuencia comprometida."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:integer .
+
+etul:frecuenciaMinutos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "frecuencia (min)"@es ;
+    rdfs:comment "Intervalo comprometido entre salidas."@es ;
+    rdfs:domain etul:Ruta ;
+    rdfs:range xsd:integer .
+
+etul:fechaOperacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de operación"@es ;
+    rdfs:comment "Día de la asignación."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range xsd:date .
+
+etul:kmRecorridos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "km recorridos"@es ;
+    rdfs:comment "Kilómetros recorridos en la jornada."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range xsd:decimal .
+
+etul:vueltasRealizadas a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "vueltas realizadas"@es ;
+    rdfs:comment "Ciclos completos cubiertos."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range xsd:integer .
+
+etul:cumplioProgramacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "¿cumplió programación?"@es ;
+    rdfs:comment "Indica si la unidad cubrió la jornada completa."@es ;
+    rdfs:domain etul:AsignacionRuta ;
+    rdfs:range xsd:boolean .
+
+etul:numeroDocumento a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "número de documento"@es ;
+    rdfs:comment "Número o código del documento."@es ;
+    rdfs:domain etul:DocumentoVehicular ;
+    rdfs:range xsd:string .
+
+etul:entidadEmisora a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "entidad emisora"@es ;
+    rdfs:comment "Entidad que emitió el documento."@es ;
+    rdfs:domain etul:DocumentoVehicular ;
+    rdfs:range xsd:string .
+
+etul:fechaEmision a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de emisión"@es ;
+    rdfs:comment "Fecha de emisión."@es ;
+    rdfs:domain etul:DocumentoVehicular ;
+    rdfs:range xsd:date .
+
+etul:fechaVencimiento a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de vencimiento"@es ;
+    rdfs:comment "Fecha en que caduca la vigencia."@es ;
+    rdfs:domain etul:DocumentoVehicular ;
+    rdfs:range xsd:date .
+
+etul:fuentePlan a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fuente del plan"@es ;
+    rdfs:comment "Origen del plan: fabricante, interno, normativa."@es ;
+    rdfs:domain etul:PlanMantenimiento ;
+    rdfs:range xsd:string .
+
+etul:vigenteDesde a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "vigente desde"@es ;
+    rdfs:comment "Fecha de inicio de vigencia."@es ;
+    rdfs:domain etul:PlanMantenimiento ;
+    rdfs:range xsd:date .
+
+etul:intervaloKm a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "intervalo km"@es ;
+    rdfs:comment "Cada cuántos kilómetros se ejecuta la tarea."@es ;
+    rdfs:domain etul:TareaProgramada ;
+    rdfs:range xsd:decimal .
+
+etul:intervaloDias a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "intervalo días"@es ;
+    rdfs:comment "Cada cuántos días calendario se ejecuta la tarea."@es ;
+    rdfs:domain etul:TareaProgramada ;
+    rdfs:range xsd:integer .
+
+etul:ventanaAvisoKm a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "ventana de aviso km"@es ;
+    rdfs:comment "Kilómetros antes del vencimiento en que se considera próxima."@es ;
+    rdfs:domain etul:TareaProgramada ;
+    rdfs:range xsd:decimal .
+
+etul:duracionEstimadaHoras a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "duración estimada (h)"@es ;
+    rdfs:comment "Tiempo estimado de ejecución en horas."@es ;
+    rdfs:domain etul:TareaProgramada ;
+    rdfs:range xsd:decimal .
+
+etul:esObligatoria a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "es obligatoria"@es ;
+    rdfs:comment "Indica si la tarea no puede omitirse (garantía o normativa)."@es ;
+    rdfs:domain etul:TareaProgramada ;
+    rdfs:range xsd:boolean .
+
+etul:fechaLectura a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de lectura"@es ;
+    rdfs:comment "Fecha de la medición."@es ;
+    rdfs:domain etul:Lectura ;
+    rdfs:range xsd:date .
+
+etul:valorLectura a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "valor de lectura"@es ;
+    rdfs:comment "Valor medido en kilómetros."@es ;
+    rdfs:domain etul:Lectura ;
+    rdfs:range xsd:decimal .
+
+etul:fuenteLectura a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fuente de lectura"@es ;
+    rdfs:comment "Origen del dato: GPS, telemetría, manual."@es ;
+    rdfs:domain etul:Lectura ;
+    rdfs:range xsd:string .
+
+etul:fechaInicio a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha inicio"@es ;
+    rdfs:comment "Inicio del periodo en el estado."@es ;
+    rdfs:domain etul:RegistroEstado ;
+    rdfs:range xsd:dateTime .
+
+etul:fechaFin a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha fin"@es ;
+    rdfs:comment "Fin del periodo; vacío si sigue en ese estado."@es ;
+    rdfs:domain etul:RegistroEstado ;
+    rdfs:range xsd:dateTime .
+
+etul:duracionHoras a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "duración (h)"@es ;
+    rdfs:comment "Duración del periodo en horas (calculada en la plantilla)."@es ;
+    rdfs:domain etul:RegistroEstado ;
+    rdfs:range xsd:decimal .
+
+etul:ubicacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "ubicación"@es ;
+    rdfs:comment "Dirección o referencia del taller o patio."@es ;
+    rdfs:domain etul:Taller ;
+    rdfs:range xsd:string .
+
+etul:horaApertura a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "hora de apertura"@es ;
+    rdfs:comment "Hora de apertura en formato HH:MM."@es ;
+    rdfs:domain etul:Taller ;
+    rdfs:range xsd:string .
+
+etul:horaCierre a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "hora de cierre"@es ;
+    rdfs:comment "Hora de cierre en formato HH:MM."@es ;
+    rdfs:domain etul:Taller ;
+    rdfs:range xsd:string .
+
+etul:esExterno a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "es externo"@es ;
+    rdfs:comment "Indica si es un taller o proveedor externo."@es ;
+    rdfs:domain etul:Taller ;
+    rdfs:range xsd:boolean .
+
+etul:capacidadVehiculos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "capacidad de vehículos"@es ;
+    rdfs:comment "Vehículos que puede atender a la vez."@es ;
+    rdfs:domain etul:Bahia ;
+    rdfs:range xsd:integer .
+
+etul:admiteOmnibus a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "¿admite ómnibus?"@es ;
+    rdfs:comment "Indica si la bahía tiene el largo y la altura para un ómnibus."@es ;
+    rdfs:domain etul:Bahia ;
+    rdfs:range xsd:boolean .
+
+etul:nombreCompleto a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "nombre completo"@es ;
+    rdfs:comment "Nombre y apellidos."@es ;
+    rdfs:domain etul:Persona ;
+    rdfs:range xsd:string .
+
+etul:horasDisponiblesSemana a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "horas disponibles por semana"@es ;
+    rdfs:comment "Capacidad semanal del técnico."@es ;
+    rdfs:domain etul:Tecnico ;
+    rdfs:range xsd:decimal .
+
+etul:costoHora a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "costo por hora"@es ;
+    rdfs:comment "Costo de mano de obra por hora."@es ;
+    rdfs:domain etul:Tecnico ;
+    rdfs:range xsd:decimal .
+
+etul:certificaciones a owl:DatatypeProperty ;
+    rdfs:label "certificaciones"@es ;
+    rdfs:comment "Certificaciones vigentes."@es ;
+    rdfs:domain etul:Tecnico ;
+    rdfs:range xsd:string .
+
+etul:licenciaCategoria a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "categoría de licencia"@es ;
+    rdfs:comment "Categoría de la licencia de conducir."@es ;
+    rdfs:domain etul:Conductor ;
+    rdfs:range xsd:string .
+
+etul:licenciaVence a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "vencimiento de licencia"@es ;
+    rdfs:comment "Fecha de vencimiento de la licencia."@es ;
+    rdfs:domain etul:Conductor ;
+    rdfs:range xsd:date .
+
+etul:aniosExperiencia a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "años de experiencia"@es ;
+    rdfs:comment "Años de experiencia en el rol. Se usa en Conductor y Experto."@es ;
+    rdfs:range xsd:integer .
+
+etul:codigoRepuesto a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "código de repuesto"@es ;
+    rdfs:comment "Código de almacén o del fabricante."@es ;
+    rdfs:domain etul:Repuesto ;
+    rdfs:range xsd:string .
+
+etul:unidadMedida a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "unidad de medida"@es ;
+    rdfs:comment "Unidad, galón, juego, etc."@es ;
+    rdfs:domain etul:Repuesto ;
+    rdfs:range xsd:string .
+
+etul:stockActual a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "stock actual"@es ;
+    rdfs:comment "Cantidad disponible en almacén."@es ;
+    rdfs:domain etul:Repuesto ;
+    rdfs:range xsd:decimal .
+
+etul:stockMinimo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "stock mínimo"@es ;
+    rdfs:comment "Nivel mínimo antes de reponer."@es ;
+    rdfs:domain etul:Repuesto ;
+    rdfs:range xsd:decimal .
+
+etul:tiempoReposicionDias a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "tiempo de reposición (días)"@es ;
+    rdfs:comment "Días promedio de reposición."@es ;
+    rdfs:domain etul:Repuesto ;
+    rdfs:range xsd:integer .
+
+etul:costoUnitario a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "costo unitario"@es ;
+    rdfs:comment "Costo por unidad."@es ;
+    rdfs:domain etul:Repuesto ;
+    rdfs:range xsd:decimal .
+
+etul:fechaProgramada a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha programada"@es ;
+    rdfs:comment "Fecha planificada de ingreso."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:date .
+
+etul:fechaInicioReal a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de inicio real"@es ;
+    rdfs:comment "Momento de ingreso real."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:dateTime .
+
+etul:fechaFinReal a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de fin real"@es ;
+    rdfs:comment "Momento de liberación real."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:dateTime .
+
+etul:kmAlIngreso a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "km al ingreso"@es ;
+    rdfs:comment "Kilometraje al ingresar al taller."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:decimal .
+
+etul:prioridad a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "prioridad"@es ;
+    rdfs:comment "Prioridad de 1 (máxima) a 5 (mínima)."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:integer .
+
+etul:horasHombre a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "horas hombre"@es ;
+    rdfs:comment "Horas de mano de obra empleadas."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:decimal .
+
+etul:costoManoObra a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "costo de mano de obra"@es ;
+    rdfs:comment "Costo de mano de obra."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:decimal .
+
+etul:descripcionTrabajo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "descripción del trabajo"@es ;
+    rdfs:comment "Detalle de lo realizado o por realizar."@es ;
+    rdfs:domain etul:OrdenTrabajo ;
+    rdfs:range xsd:string .
+
+etul:cantidad a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "cantidad"@es ;
+    rdfs:comment "Cantidad requerida o utilizada."@es ;
+    rdfs:domain etul:ConsumoRepuesto ;
+    rdfs:range xsd:decimal .
+
+etul:fechaReporte a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de reporte"@es ;
+    rdfs:comment "Momento en que se reportó la falla."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range xsd:dateTime .
+
+etul:descripcionFalla a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "descripción de la falla"@es ;
+    rdfs:comment "Síntoma observado, en las palabras de quien reportó."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range xsd:string .
+
+etul:causaRaiz a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "causa raíz"@es ;
+    rdfs:comment "Causa identificada tras el diagnóstico."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range xsd:string .
+
+etul:detectadaEnRuta a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "detectada en ruta"@es ;
+    rdfs:comment "Indica si la falla ocurrió durante la operación."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range xsd:boolean .
+
+etul:kmAlReportar a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "km al reportar"@es ;
+    rdfs:comment "Kilometraje al reportar la falla."@es ;
+    rdfs:domain etul:Falla ;
+    rdfs:range xsd:decimal .
+
+etul:fechaSesion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de sesión"@es ;
+    rdfs:comment "Fecha de la entrevista."@es ;
+    rdfs:domain etul:SesionEntrevista ;
+    rdfs:range xsd:date .
+
+etul:numeroSesion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "número de sesión"@es ;
+    rdfs:comment "Orden de la sesión (1 a 4)."@es ;
+    rdfs:domain etul:SesionEntrevista ;
+    rdfs:range xsd:integer .
+
+etul:bloqueTematico a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "bloque temático"@es ;
+    rdfs:comment "Bloques del banco de preguntas trabajados."@es ;
+    rdfs:domain etul:SesionEntrevista ;
+    rdfs:range xsd:string .
+
+etul:duracionMinutos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "duración (min)"@es ;
+    rdfs:comment "Duración de la sesión en minutos."@es ;
+    rdfs:domain etul:SesionEntrevista ;
+    rdfs:range xsd:integer .
+
+etul:archivoGrabacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "archivo de grabación"@es ;
+    rdfs:comment "Ruta o nombre del archivo de audio."@es ;
+    rdfs:domain etul:SesionEntrevista ;
+    rdfs:range xsd:string .
+
+etul:textoOriginal a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "texto original"@es ;
+    rdfs:comment "Regla en las palabras exactas del experto."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:string .
+
+etul:condicion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "condición"@es ;
+    rdfs:comment "Situación en la que aplica la regla (SI...)."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:string .
+
+etul:accion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "acción"@es ;
+    rdfs:comment "Qué se debe hacer (ENTONCES...)."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:string .
+
+etul:motivo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "motivo"@es ;
+    rdfs:comment "Por qué existe la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:string .
+
+etul:idPreguntaOrigen a owl:DatatypeProperty ;
+    rdfs:label "ID pregunta de origen"@es ;
+    rdfs:comment "ID del banco de preguntas (P-xxxx)."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:string .
+
+etul:parametroNombre a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "nombre del parámetro"@es ;
+    rdfs:comment "Nombre del valor numérico de la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:string .
+
+etul:parametroValor a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "valor del parámetro"@es ;
+    rdfs:comment "Valor numérico de la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:decimal .
+
+etul:pesoPreferencia a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "peso de preferencia"@es ;
+    rdfs:comment "Importancia de 0 a 1 para preferencias."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:decimal .
+
+etul:fechaValidacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de validación"@es ;
+    rdfs:comment "Fecha en que se validó la regla."@es ;
+    rdfs:domain etul:ReglaExperto ;
+    rdfs:range xsd:date .
+
+etul:fechaAjuste a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de ajuste"@es ;
+    rdfs:comment "Momento en que se hizo el cambio."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range xsd:dateTime .
+
+etul:fechaAnterior a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha anterior"@es ;
+    rdfs:comment "Fecha programada antes del cambio."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range xsd:date .
+
+etul:fechaNueva a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha nueva"@es ;
+    rdfs:comment "Fecha programada después del cambio."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range xsd:date .
+
+etul:comentarioAjuste a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "comentario"@es ;
+    rdfs:comment "Detalle libre del ajuste."@es ;
+    rdfs:domain etul:AjusteCalendario ;
+    rdfs:range xsd:string .
+
+etul:nombreModelo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "nombre del modelo"@es ;
+    rdfs:comment "Identificador del modelo de lenguaje usado."@es ;
+    rdfs:domain etul:ModeloLLM ;
+    rdfs:range xsd:string .
+
+etul:proveedorModelo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "proveedor"@es ;
+    rdfs:comment "Proveedor o repositorio del modelo."@es ;
+    rdfs:domain etul:ModeloLLM ;
+    rdfs:range xsd:string .
+
+etul:versionModelo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "versión"@es ;
+    rdfs:comment "Versión o fecha del modelo, necesaria para reproducir el experimento."@es ;
+    rdfs:domain etul:ModeloLLM ;
+    rdfs:range xsd:string .
+
+etul:ejecucionLocal a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "¿ejecución local?"@es ;
+    rdfs:comment "Indica si el modelo corre en infraestructura propia (relevante por confidencialidad)."@es ;
+    rdfs:domain etul:ModeloLLM ;
+    rdfs:range xsd:boolean .
+
+etul:fechaFuente a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de la fuente"@es ;
+    rdfs:comment "Fecha del documento o del reporte."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range xsd:date .
+
+etul:rutaArchivo a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "ruta del archivo"@es ;
+    rdfs:comment "Ubicación del documento original."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range xsd:string .
+
+etul:textoFuente a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "texto"@es ;
+    rdfs:comment "Texto completo o extracto de la fuente."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range xsd:string .
+
+etul:numeroPalabras a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "número de palabras"@es ;
+    rdfs:comment "Tamaño del texto, útil para reportar el corpus."@es ;
+    rdfs:domain etul:FuenteTextual ;
+    rdfs:range xsd:integer .
+
+etul:sujetoPropuesto a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "sujeto propuesto"@es ;
+    rdfs:comment "Sujeto del hecho propuesto por el modelo."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range xsd:string .
+
+etul:predicadoPropuesto a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "predicado propuesto"@es ;
+    rdfs:comment "Propiedad de la ontología que el modelo propone usar."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range xsd:string .
+
+etul:objetoPropuesto a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "objeto propuesto"@es ;
+    rdfs:comment "Valor o individuo propuesto por el modelo."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range xsd:string .
+
+etul:fragmentoEvidencia a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fragmento de evidencia"@es ;
+    rdfs:comment "Parte del texto que justifica el hecho; permite auditar la extracción."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range xsd:string .
+
+etul:confianza a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "confianza"@es ;
+    rdfs:comment "Confianza declarada por el modelo, de 0 a 1."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range xsd:decimal .
+
+etul:versionPrompt a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "versión del prompt"@es ;
+    rdfs:comment "Identificador de la plantilla de prompt usada. Se usa en ExtraccionLLM y ConsultaNL."@es ;
+    rdfs:range xsd:string .
+
+etul:fechaExtraccion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de extracción"@es ;
+    rdfs:comment "Momento en que el modelo generó el hecho."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range xsd:dateTime .
+
+etul:comentarioRevision a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "comentario de revisión"@es ;
+    rdfs:comment "Observación del revisor humano."@es ;
+    rdfs:domain etul:ExtraccionLLM ;
+    rdfs:range xsd:string .
+
+etul:textoPregunta a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "pregunta"@es ;
+    rdfs:comment "Pregunta tal como la escribió el usuario."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range xsd:string .
+
+etul:idPreguntaCompetencia a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "ID pregunta de competencia"@es ;
+    rdfs:comment "ID del banco de preguntas (CQ-xxx) que corresponde."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range xsd:string .
+
+etul:consultaGenerada a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "consulta SPARQL generada"@es ;
+    rdfs:comment "Consulta que produjo el modelo."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range xsd:string .
+
+etul:consultaEjecutable a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "¿consulta ejecutable?"@es ;
+    rdfs:comment "Indica si la consulta se ejecutó sin error de sintaxis."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range xsd:boolean .
+
+etul:numeroResultados a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "número de resultados"@es ;
+    rdfs:comment "Filas devueltas por la consulta."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range xsd:integer .
+
+etul:fechaConsulta a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de la consulta"@es ;
+    rdfs:comment "Momento de la ejecución."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range xsd:dateTime .
+
+etul:intentoNumero a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "número de intento"@es ;
+    rdfs:comment "Intento dentro de la misma pregunta."@es ;
+    rdfs:domain etul:ConsultaNL ;
+    rdfs:range xsd:integer .
+
+etul:textoRespuesta a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "texto de la respuesta"@es ;
+    rdfs:comment "Respuesta redactada por el modelo."@es ;
+    rdfs:domain etul:RespuestaGenerada ;
+    rdfs:range xsd:string .
+
+etul:declaroSinDatos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "¿declaró sin datos?"@es ;
+    rdfs:comment "Indica si el modelo respondió que el grafo no tiene la información."@es ;
+    rdfs:domain etul:RespuestaGenerada ;
+    rdfs:range xsd:boolean .
+
+etul:numeroHechosCitados a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "hechos citados"@es ;
+    rdfs:comment "Cantidad de individuos citados como evidencia."@es ;
+    rdfs:domain etul:RespuestaGenerada ;
+    rdfs:range xsd:integer .
+
+etul:fechaGeneracion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de generación"@es ;
+    rdfs:comment "Momento en que se generó la respuesta."@es ;
+    rdfs:domain etul:RespuestaGenerada ;
+    rdfs:range xsd:dateTime .
+
+etul:hechosCorrectos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "hechos correctos"@es ;
+    rdfs:comment "Citas verificadas como correctas."@es ;
+    rdfs:domain etul:EvaluacionRespuesta ;
+    rdfs:range xsd:integer .
+
+etul:hechosIncorrectos a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "hechos incorrectos"@es ;
+    rdfs:comment "Citas erróneas o inventadas."@es ;
+    rdfs:domain etul:EvaluacionRespuesta ;
+    rdfs:range xsd:integer .
+
+etul:fechaEvaluacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "fecha de evaluación"@es ;
+    rdfs:comment "Fecha del juicio humano."@es ;
+    rdfs:domain etul:EvaluacionRespuesta ;
+    rdfs:range xsd:date .
+
+etul:comentarioEvaluacion a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "comentario"@es ;
+    rdfs:comment "Observación del evaluador."@es ;
+    rdfs:domain etul:EvaluacionRespuesta ;
+    rdfs:range xsd:string .
+
+# -----------------------------------------------------------------------------
+# 5. Clases definidas: el razonador (HermiT, Pellet) clasifica los individuos automáticamente
+# -----------------------------------------------------------------------------
+etul:UnidadOmnibus a owl:Class ;
+    rdfs:label "Unidad ómnibus"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:categoria ; owl:hasValue etul:Omnibus ] ) ] .
+
+etul:UnidadMicrobus a owl:Class ;
+    rdfs:label "Unidad microbús"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:categoria ; owl:hasValue etul:Microbus ] ) ] .
+
+etul:UnidadCoaster a owl:Class ;
+    rdfs:label "Unidad coaster"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:categoria ; owl:hasValue etul:Coaster ] ) ] .
+
+etul:UnidadApoyo a owl:Class ;
+    rdfs:label "Unidad de apoyo"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:categoria ; owl:hasValue etul:VehiculoApoyo ] ) ] .
+
+etul:UnidadGNV a owl:Class ;
+    rdfs:label "Unidad a gas natural"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:combustible ; owl:someValuesFrom [ a owl:Class ; owl:oneOf ( etul:GNV etul:Dual ) ] ] ) ] .
+
+etul:VehiculoDisponible a owl:Class ;
+    rdfs:label "Vehículo disponible"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:estadoActual ; owl:hasValue etul:Operativo ] ) ] .
+
+etul:VehiculoNoDisponible a owl:Class ;
+    rdfs:label "Vehículo no disponible"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:estadoActual ; owl:someValuesFrom [ a owl:Class ; owl:oneOf ( etul:EnTaller etul:EsperandoRepuesto etul:FueraDeServicio etul:DocumentoVencido ) ] ] ) ] .
+
+etul:OrdenPreventiva a owl:Class ;
+    rdfs:label "Orden preventiva"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:OrdenTrabajo [ a owl:Restriction ; owl:onProperty etul:tipoMantenimiento ; owl:hasValue etul:Preventivo ] ) ] .
+
+etul:OrdenCorrectiva a owl:Class ;
+    rdfs:label "Orden correctiva"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:OrdenTrabajo [ a owl:Restriction ; owl:onProperty etul:tipoMantenimiento ; owl:hasValue etul:Correctivo ] ) ] .
+
+etul:OrdenAbierta a owl:Class ;
+    rdfs:label "Orden abierta"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:OrdenTrabajo [ a owl:Restriction ; owl:onProperty etul:estadoOrden ; owl:someValuesFrom [ a owl:Class ; owl:oneOf ( etul:Programada etul:EnEjecucion etul:BloqueadaPorRepuesto ) ] ] ) ] .
+
+etul:OrdenEnCurso a owl:Class ;
+    rdfs:label "Orden en curso"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:OrdenTrabajo [ a owl:Restriction ; owl:onProperty etul:estadoOrden ; owl:someValuesFrom [ a owl:Class ; owl:oneOf ( etul:EnEjecucion etul:BloqueadaPorRepuesto ) ] ] ) ] .
+
+etul:OrdenBloqueada a owl:Class ;
+    rdfs:label "Orden bloqueada"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:OrdenTrabajo [ a owl:Restriction ; owl:onProperty etul:estadoOrden ; owl:hasValue etul:BloqueadaPorRepuesto ] ) ] .
+
+etul:VehiculoConOrdenAbierta a owl:Class ;
+    rdfs:label "Vehículo con orden abierta"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:tieneOrden ; owl:someValuesFrom etul:OrdenAbierta ] ) ] .
+
+etul:VehiculoConOrdenEnCurso a owl:Class ;
+    rdfs:label "Vehículo con orden en curso"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Vehiculo [ a owl:Restriction ; owl:onProperty etul:tieneOrden ; owl:someValuesFrom etul:OrdenEnCurso ] ) ] .
+
+etul:FallaCritica a owl:Class ;
+    rdfs:label "Falla crítica"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Falla [ a owl:Restriction ; owl:onProperty etul:severidad ; owl:hasValue etul:SeveridadCritica ] ) ] .
+
+etul:FallaEnOperacion a owl:Class ;
+    rdfs:label "Falla en operación"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:Falla [ a owl:Restriction ; owl:onProperty etul:reportadaPorConductor ; owl:someValuesFrom etul:Conductor ] ) ] .
+
+etul:RestriccionDura a owl:Class ;
+    rdfs:label "Restricción dura"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ReglaExperto [ a owl:Restriction ; owl:onProperty etul:tipoRegla ; owl:hasValue etul:ReglaDura ] ) ] .
+
+etul:Preferencia a owl:Class ;
+    rdfs:label "Preferencia"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ReglaExperto [ a owl:Restriction ; owl:onProperty etul:tipoRegla ; owl:hasValue etul:ReglaPreferencia ] ) ] .
+
+etul:CriterioPrioridad a owl:Class ;
+    rdfs:label "Criterio de prioridad"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ReglaExperto [ a owl:Restriction ; owl:onProperty etul:tipoRegla ; owl:hasValue etul:ReglaPrioridad ] ) ] .
+
+etul:Heuristica a owl:Class ;
+    rdfs:label "Heurística"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ReglaExperto [ a owl:Restriction ; owl:onProperty etul:tipoRegla ; owl:hasValue etul:ReglaHeuristica ] ) ] .
+
+etul:ReglaAprobada a owl:Class ;
+    rdfs:label "Regla aprobada"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ReglaExperto [ a owl:Restriction ; owl:onProperty etul:estadoValidacion ; owl:hasValue etul:Aprobada ] ) ] .
+
+etul:FuenteDeConductor a owl:Class ;
+    rdfs:label "Fuente de conductor"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:FuenteTextual [ a owl:Restriction ; owl:onProperty etul:tipoFuente ; owl:hasValue etul:ReporteConductor ] ) ] .
+
+etul:FuenteDeChatbot a owl:Class ;
+    rdfs:label "Fuente de sesión con el asistente"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:FuenteTextual [ a owl:Restriction ; owl:onProperty etul:tipoFuente ; owl:hasValue etul:SesionChatbot ] ) ] .
+
+etul:ExtraccionPendiente a owl:Class ;
+    rdfs:label "Extracción pendiente de revisión"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ExtraccionLLM [ a owl:Restriction ; owl:onProperty etul:estadoExtraccion ; owl:hasValue etul:ExtPropuesta ] ) ] .
+
+etul:ExtraccionIncorporada a owl:Class ;
+    rdfs:label "Extracción incorporada al grafo"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ExtraccionLLM [ a owl:Restriction ; owl:onProperty etul:estadoExtraccion ; owl:someValuesFrom [ a owl:Class ; owl:oneOf ( etul:ExtAceptada etul:ExtCorregida ) ] ] ) ] .
+
+etul:ExtraccionRechazada a owl:Class ;
+    rdfs:label "Extracción rechazada"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:ExtraccionLLM [ a owl:Restriction ; owl:onProperty etul:estadoExtraccion ; owl:hasValue etul:ExtRechazada ] ) ] .
+
+etul:RespuestaFundamentada a owl:Class ;
+    rdfs:label "Respuesta fundamentada"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:RespuestaGenerada [ a owl:Restriction ; owl:onProperty etul:fundamentadaEn ; owl:minCardinality "1"^^xsd:nonNegativeInteger ] ) ] .
+
+etul:RespuestaSinEvidencia a owl:Class ;
+    rdfs:label "Respuesta sin evidencia"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:RespuestaGenerada [ a owl:Restriction ; owl:onProperty etul:fundamentadaEn ; owl:maxCardinality "0"^^xsd:nonNegativeInteger ] ) ] .
+
+etul:RespuestaCorrecta a owl:Class ;
+    rdfs:label "Respuesta correcta"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:RespuestaGenerada [ a owl:Restriction ; owl:onProperty etul:tieneEvaluacion ; owl:someValuesFrom etul:EvaluacionCorrecta ] ) ] .
+
+etul:EvaluacionCorrecta a owl:Class ;
+    rdfs:label "Evaluación correcta"@es ;
+    owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( etul:EvaluacionRespuesta [ a owl:Restriction ; owl:onProperty etul:veredicto ; owl:hasValue etul:Correcta ] ) ] .
+
+
+# Individuos generados desde la plantilla de poblamiento
+# Fuente: 03_plantilla_poblamiento_etul4.xlsx | Generado: 2026-09-12T16:24:00
+@prefix etul: <http://example.org/tesis/etul4#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# ---- Taller (2) ----
+etul:TAL-01 a owl:NamedIndividual , etul:Taller ;
+    rdfs:label "Patio y taller principal"@es ;
+    etul:ubicacion "Patio principal de la empresa" ;
+    etul:horaApertura "06:00" ;
+    etul:horaCierre "23:00" ;
+    etul:esExterno false .
+
+etul:TAL-02 a owl:NamedIndividual , etul:Taller ;
+    rdfs:label "Taller externo de carrocería"@es ;
+    etul:ubicacion "Proveedor externo" ;
+    etul:horaApertura "08:00" ;
+    etul:horaCierre "18:00" ;
+    etul:esExterno true .
+
+# ---- Bahia (4) ----
+etul:BAH-01 a owl:NamedIndividual , etul:Bahia ;
+    rdfs:label "Bahía 1 fosa ómnibus"@es ;
+    etul:bahiaDeTaller etul:TAL-01 ;
+    etul:aplicaACategoria etul:Omnibus , etul:Microbus ;
+    etul:capacidadVehiculos "1"^^xsd:integer ;
+    etul:admiteOmnibus true .
+
+etul:BAH-02 a owl:NamedIndividual , etul:Bahia ;
+    rdfs:label "Bahía 2 fosa ómnibus"@es ;
+    etul:bahiaDeTaller etul:TAL-01 ;
+    etul:aplicaACategoria etul:Omnibus , etul:Microbus ;
+    etul:capacidadVehiculos "1"^^xsd:integer ;
+    etul:admiteOmnibus true .
+
+etul:BAH-03 a owl:NamedIndividual , etul:Bahia ;
+    rdfs:label "Bahía 3 mecánica media"@es ;
+    etul:bahiaDeTaller etul:TAL-01 ;
+    etul:aplicaACategoria etul:Microbus , etul:Coaster , etul:VehiculoApoyo ;
+    etul:capacidadVehiculos "1"^^xsd:integer ;
+    etul:admiteOmnibus false .
+
+etul:BAH-04 a owl:NamedIndividual , etul:Bahia ;
+    rdfs:label "Bahía 4 neumáticos"@es ;
+    etul:bahiaDeTaller etul:TAL-01 ;
+    etul:aplicaACategoria etul:Omnibus , etul:Microbus , etul:Coaster , etul:VehiculoApoyo ;
+    etul:capacidadVehiculos "2"^^xsd:integer ;
+    etul:admiteOmnibus true .
+
+# ---- Ruta (4) ----
+etul:RUT-1100 a owl:NamedIndividual , etul:Ruta ;
+    rdfs:label "Ruta 1100 «P»"@es ;
+    etul:codigoRuta "1100" ;
+    etul:denominacionRuta "P" ;
+    etul:terminalOrigen "Av. Lima (Villa María del Triunfo)" ;
+    etul:terminalDestino "Av. 15 de Julio (San Juan de Lurigancho)" ;
+    etul:longitudKm "62"^^xsd:decimal ;
+    etul:tiempoCicloMinutos "200"^^xsd:integer ;
+    etul:frecuenciaMinutos "8"^^xsd:integer ;
+    etul:unidadesRequeridas "3"^^xsd:integer ;
+    etul:rutaAutorizadaPara etul:Omnibus , etul:Microbus .
+
+etul:RUT-1098 a owl:NamedIndividual , etul:Ruta ;
+    rdfs:label "Ruta 1098 «L»"@es ;
+    etul:codigoRuta "1098" ;
+    etul:denominacionRuta "L" ;
+    etul:terminalOrigen "Av. Sumac Paccha (Lurín)" ;
+    etul:terminalDestino "Av. Fernando Wiesse (San Juan de Lurigancho)" ;
+    etul:longitudKm "58"^^xsd:decimal ;
+    etul:tiempoCicloMinutos "190"^^xsd:integer ;
+    etul:frecuenciaMinutos "10"^^xsd:integer ;
+    etul:unidadesRequeridas "3"^^xsd:integer ;
+    etul:rutaAutorizadaPara etul:Omnibus , etul:Microbus .
+
+etul:RUT-1054 a owl:NamedIndividual , etul:Ruta ;
+    rdfs:label "Ruta 1054"@es ;
+    etul:codigoRuta "1054" ;
+    etul:denominacionRuta "1054" ;
+    etul:terminalOrigen "Vía auxiliar Panamericana Sur (Lurín)" ;
+    etul:terminalDestino "Calle Principal (Ñaña)" ;
+    etul:longitudKm "54"^^xsd:decimal ;
+    etul:tiempoCicloMinutos "180"^^xsd:integer ;
+    etul:frecuenciaMinutos "12"^^xsd:integer ;
+    etul:unidadesRequeridas "2"^^xsd:integer ;
+    etul:rutaAutorizadaPara etul:Omnibus , etul:Microbus , etul:Coaster .
+
+etul:RUT-1488 a owl:NamedIndividual , etul:Ruta ;
+    rdfs:label "Ruta 1488 «C»"@es ;
+    etul:codigoRuta "1488" ;
+    etul:denominacionRuta "C" ;
+    etul:terminalOrigen "Vía auxiliar Panamericana Sur (Lurín)" ;
+    etul:terminalDestino "Calle Principal (Ñaña)" ;
+    etul:longitudKm "54"^^xsd:decimal ;
+    etul:tiempoCicloMinutos "180"^^xsd:integer ;
+    etul:frecuenciaMinutos "12"^^xsd:integer ;
+    etul:unidadesRequeridas "2"^^xsd:integer ;
+    etul:rutaAutorizadaPara etul:Omnibus , etul:Microbus , etul:Coaster .
+
+# ---- PlanMantenimiento (4) ----
+etul:PLAN-OMN a owl:NamedIndividual , etul:PlanMantenimiento ;
+    rdfs:label "Plan ómnibus urbano"@es ;
+    etul:planParaCategoria etul:Omnibus ;
+    etul:fuentePlan "Manual del fabricante y ajuste interno" ;
+    etul:vigenteDesde "2026-01-01"^^xsd:date .
+
+etul:PLAN-MIC a owl:NamedIndividual , etul:PlanMantenimiento ;
+    rdfs:label "Plan microbús"@es ;
+    etul:planParaCategoria etul:Microbus ;
+    etul:fuentePlan "Manual del fabricante" ;
+    etul:vigenteDesde "2026-01-01"^^xsd:date .
+
+etul:PLAN-COA a owl:NamedIndividual , etul:PlanMantenimiento ;
+    rdfs:label "Plan coaster"@es ;
+    etul:planParaCategoria etul:Coaster ;
+    etul:fuentePlan "Manual del fabricante" ;
+    etul:vigenteDesde "2026-01-01"^^xsd:date .
+
+etul:PLAN-APO a owl:NamedIndividual , etul:PlanMantenimiento ;
+    rdfs:label "Plan vehículo de apoyo"@es ;
+    etul:planParaCategoria etul:VehiculoApoyo ;
+    etul:fuentePlan "Manual del fabricante" ;
+    etul:vigenteDesde "2026-01-01"^^xsd:date .
+
+# ---- TareaProgramada (10) ----
+etul:TAR-001 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Cambio de aceite y filtros de motor"@es ;
+    etul:tareaDePlan etul:PLAN-OMN ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:intervaloKm "12000"^^xsd:decimal ;
+    etul:intervaloDias "90"^^xsd:integer ;
+    etul:ventanaAvisoKm "1000"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "3"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspMecanica ;
+    etul:esObligatoria true .
+
+etul:TAR-002 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Revisión de frenos y sistema neumático"@es ;
+    etul:tareaDePlan etul:PLAN-OMN ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Frenos ;
+    etul:intervaloKm "20000"^^xsd:decimal ;
+    etul:intervaloDias "120"^^xsd:integer ;
+    etul:ventanaAvisoKm "1500"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "4"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspFrenosSuspension , etul:EspNeumatica ;
+    etul:esObligatoria true .
+
+etul:TAR-003 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Rotación y calibración de neumáticos"@es ;
+    etul:tareaDePlan etul:PLAN-OMN ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Neumaticos ;
+    etul:intervaloKm "15000"^^xsd:decimal ;
+    etul:ventanaAvisoKm "1000"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "2"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspNeumaticos ;
+    etul:esObligatoria false .
+
+etul:TAR-004 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Mantenimiento de puertas de servicio"@es ;
+    etul:tareaDePlan etul:PLAN-OMN ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:PuertasServicio ;
+    etul:intervaloKm "25000"^^xsd:decimal ;
+    etul:intervaloDias "180"^^xsd:integer ;
+    etul:ventanaAvisoKm "2000"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "3"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspNeumatica ;
+    etul:esObligatoria true .
+
+etul:TAR-005 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Inspección de suspensión y dirección"@es ;
+    etul:tareaDePlan etul:PLAN-OMN ;
+    etul:tipoMantenimiento etul:Inspeccion ;
+    etul:tipoComponente etul:Suspension ;
+    etul:intervaloKm "30000"^^xsd:decimal ;
+    etul:intervaloDias "180"^^xsd:integer ;
+    etul:ventanaAvisoKm "2000"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "3"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspFrenosSuspension ;
+    etul:esObligatoria true .
+
+etul:TAR-006 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Inspección del sistema GNV"@es ;
+    etul:tareaDePlan etul:PLAN-OMN ;
+    etul:tipoMantenimiento etul:Inspeccion ;
+    etul:tipoComponente etul:SistemaCombustible ;
+    etul:intervaloDias "365"^^xsd:integer ;
+    etul:duracionEstimadaHoras "4"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspGNV ;
+    etul:esObligatoria true .
+
+etul:TAR-007 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Cambio de aceite y filtros microbús"@es ;
+    etul:tareaDePlan etul:PLAN-MIC ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:intervaloKm "10000"^^xsd:decimal ;
+    etul:intervaloDias "90"^^xsd:integer ;
+    etul:ventanaAvisoKm "800"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "2.5"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspMecanica ;
+    etul:esObligatoria true .
+
+etul:TAR-008 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Revisión de frenos microbús"@es ;
+    etul:tareaDePlan etul:PLAN-MIC ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Frenos ;
+    etul:intervaloKm "18000"^^xsd:decimal ;
+    etul:ventanaAvisoKm "1200"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "3"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspFrenosSuspension ;
+    etul:esObligatoria true .
+
+etul:TAR-009 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Cambio de aceite y filtros coaster"@es ;
+    etul:tareaDePlan etul:PLAN-COA ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:intervaloKm "8000"^^xsd:decimal ;
+    etul:intervaloDias "90"^^xsd:integer ;
+    etul:ventanaAvisoKm "600"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "2"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspMecanica ;
+    etul:esObligatoria true .
+
+etul:TAR-010 a owl:NamedIndividual , etul:TareaProgramada ;
+    rdfs:label "Servicio general vehículo de apoyo"@es ;
+    etul:tareaDePlan etul:PLAN-APO ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:intervaloKm "5000"^^xsd:decimal ;
+    etul:intervaloDias "180"^^xsd:integer ;
+    etul:ventanaAvisoKm "500"^^xsd:decimal ;
+    etul:duracionEstimadaHoras "1.5"^^xsd:decimal ;
+    etul:requiereEspecialidad etul:EspMecanica ;
+    etul:esObligatoria true .
+
+# ---- Vehiculo (12) ----
+etul:VEH-001 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Ómnibus padrón 101"@es ;
+    etul:placa "B2D-745" ;
+    etul:codigoInterno "101" ;
+    etul:categoria etul:Omnibus ;
+    etul:combustible etul:GNV ;
+    etul:marca "Mercedes-Benz" ;
+    etul:modelo "OF-1721" ;
+    etul:carrocero "Modasa" ;
+    etul:anioFabricacion "2019"^^xsd:integer ;
+    etul:fechaAlta "2019-05-10"^^xsd:date ;
+    etul:kmActual "412800"^^xsd:decimal ;
+    etul:capacidadPasajeros "60"^^xsd:integer ;
+    etul:esCritico true ;
+    etul:rutaHabitual etul:RUT-1100 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-OMN ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-002 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Ómnibus padrón 102"@es ;
+    etul:placa "B2D-746" ;
+    etul:codigoInterno "102" ;
+    etul:categoria etul:Omnibus ;
+    etul:combustible etul:GNV ;
+    etul:marca "Mercedes-Benz" ;
+    etul:modelo "OF-1721" ;
+    etul:carrocero "Modasa" ;
+    etul:anioFabricacion "2019"^^xsd:integer ;
+    etul:fechaAlta "2019-05-10"^^xsd:date ;
+    etul:kmActual "398500"^^xsd:decimal ;
+    etul:capacidadPasajeros "60"^^xsd:integer ;
+    etul:esCritico true ;
+    etul:rutaHabitual etul:RUT-1100 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-OMN ;
+    etul:estadoActual etul:EnTaller .
+
+etul:VEH-003 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Ómnibus padrón 103"@es ;
+    etul:placa "B2D-747" ;
+    etul:codigoInterno "103" ;
+    etul:categoria etul:Omnibus ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Volvo" ;
+    etul:modelo "B7R" ;
+    etul:carrocero "Marcopolo" ;
+    etul:anioFabricacion "2020"^^xsd:integer ;
+    etul:fechaAlta "2020-03-01"^^xsd:date ;
+    etul:kmActual "355200"^^xsd:decimal ;
+    etul:capacidadPasajeros "62"^^xsd:integer ;
+    etul:esCritico true ;
+    etul:rutaHabitual etul:RUT-1100 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-OMN ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-004 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Ómnibus padrón 104"@es ;
+    etul:placa "B2D-748" ;
+    etul:codigoInterno "104" ;
+    etul:categoria etul:Omnibus ;
+    etul:combustible etul:GNV ;
+    etul:marca "Mercedes-Benz" ;
+    etul:modelo "OF-1721" ;
+    etul:carrocero "Modasa" ;
+    etul:anioFabricacion "2018"^^xsd:integer ;
+    etul:fechaAlta "2018-08-20"^^xsd:date ;
+    etul:kmActual "468900"^^xsd:decimal ;
+    etul:capacidadPasajeros "60"^^xsd:integer ;
+    etul:esCritico true ;
+    etul:rutaHabitual etul:RUT-1098 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-OMN ;
+    etul:estadoActual etul:EsperandoRepuesto .
+
+etul:VEH-005 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Ómnibus padrón 105"@es ;
+    etul:placa "B2D-749" ;
+    etul:codigoInterno "105" ;
+    etul:categoria etul:Omnibus ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Volvo" ;
+    etul:modelo "B7R" ;
+    etul:carrocero "Marcopolo" ;
+    etul:anioFabricacion "2021"^^xsd:integer ;
+    etul:fechaAlta "2021-02-15"^^xsd:date ;
+    etul:kmActual "288400"^^xsd:decimal ;
+    etul:capacidadPasajeros "62"^^xsd:integer ;
+    etul:esCritico true ;
+    etul:rutaHabitual etul:RUT-1098 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-OMN ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-006 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Ómnibus padrón 106"@es ;
+    etul:placa "B2D-750" ;
+    etul:codigoInterno "106" ;
+    etul:categoria etul:Omnibus ;
+    etul:combustible etul:GNV ;
+    etul:marca "Mercedes-Benz" ;
+    etul:modelo "OF-1721" ;
+    etul:carrocero "Modasa" ;
+    etul:anioFabricacion "2020"^^xsd:integer ;
+    etul:fechaAlta "2020-09-05"^^xsd:date ;
+    etul:kmActual "331700"^^xsd:decimal ;
+    etul:capacidadPasajeros "60"^^xsd:integer ;
+    etul:esCritico true ;
+    etul:rutaHabitual etul:RUT-1098 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-OMN ;
+    etul:estadoActual etul:DocumentoVencido .
+
+etul:VEH-007 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Microbús 201"@es ;
+    etul:placa "B5J-312" ;
+    etul:codigoInterno "201" ;
+    etul:categoria etul:Microbus ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Hino" ;
+    etul:modelo "FC9J" ;
+    etul:carrocero "Apple Bus" ;
+    etul:anioFabricacion "2019"^^xsd:integer ;
+    etul:fechaAlta "2019-11-12"^^xsd:date ;
+    etul:kmActual "276300"^^xsd:decimal ;
+    etul:capacidadPasajeros "38"^^xsd:integer ;
+    etul:esCritico false ;
+    etul:rutaHabitual etul:RUT-1054 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-MIC ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-008 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Microbús 202"@es ;
+    etul:placa "B5J-313" ;
+    etul:codigoInterno "202" ;
+    etul:categoria etul:Microbus ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Hino" ;
+    etul:modelo "FC9J" ;
+    etul:carrocero "Apple Bus" ;
+    etul:anioFabricacion "2019"^^xsd:integer ;
+    etul:fechaAlta "2019-11-12"^^xsd:date ;
+    etul:kmActual "291500"^^xsd:decimal ;
+    etul:capacidadPasajeros "38"^^xsd:integer ;
+    etul:esCritico false ;
+    etul:rutaHabitual etul:RUT-1054 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-MIC ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-009 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Microbús 203"@es ;
+    etul:placa "B5J-314" ;
+    etul:codigoInterno "203" ;
+    etul:categoria etul:Microbus ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Hino" ;
+    etul:modelo "FC9J" ;
+    etul:carrocero "Apple Bus" ;
+    etul:anioFabricacion "2021"^^xsd:integer ;
+    etul:fechaAlta "2021-06-01"^^xsd:date ;
+    etul:kmActual "198200"^^xsd:decimal ;
+    etul:capacidadPasajeros "38"^^xsd:integer ;
+    etul:esCritico false ;
+    etul:rutaHabitual etul:RUT-1488 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-MIC ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-010 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Coaster 301"@es ;
+    etul:placa "B7M-118" ;
+    etul:codigoInterno "301" ;
+    etul:categoria etul:Coaster ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Toyota" ;
+    etul:modelo "Coaster" ;
+    etul:carrocero "Original" ;
+    etul:anioFabricacion "2018"^^xsd:integer ;
+    etul:fechaAlta "2018-04-03"^^xsd:date ;
+    etul:kmActual "224600"^^xsd:decimal ;
+    etul:capacidadPasajeros "25"^^xsd:integer ;
+    etul:esCritico false ;
+    etul:rutaHabitual etul:RUT-1488 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-COA ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-011 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Coaster 302"@es ;
+    etul:placa "B7M-119" ;
+    etul:codigoInterno "302" ;
+    etul:categoria etul:Coaster ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Toyota" ;
+    etul:modelo "Coaster" ;
+    etul:carrocero "Original" ;
+    etul:anioFabricacion "2020"^^xsd:integer ;
+    etul:fechaAlta "2020-07-22"^^xsd:date ;
+    etul:kmActual "167900"^^xsd:decimal ;
+    etul:capacidadPasajeros "25"^^xsd:integer ;
+    etul:esCritico false ;
+    etul:rutaHabitual etul:RUT-1054 ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-COA ;
+    etul:estadoActual etul:Operativo .
+
+etul:VEH-012 a owl:NamedIndividual , etul:Vehiculo ;
+    rdfs:label "Camioneta de supervisión"@es ;
+    etul:placa "D4W-902" ;
+    etul:codigoInterno "901" ;
+    etul:categoria etul:VehiculoApoyo ;
+    etul:combustible etul:Diesel ;
+    etul:marca "Toyota" ;
+    etul:modelo "Hilux" ;
+    etul:anioFabricacion "2022"^^xsd:integer ;
+    etul:fechaAlta "2022-01-18"^^xsd:date ;
+    etul:kmActual "64300"^^xsd:decimal ;
+    etul:capacidadPasajeros "5"^^xsd:integer ;
+    etul:esCritico false ;
+    etul:asignadoATaller etul:TAL-01 ;
+    etul:tienePlan etul:PLAN-APO ;
+    etul:estadoActual etul:Operativo .
+
+# ---- DocumentoVehicular (8) ----
+etul:DOC-001 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-001 ;
+    etul:tipoDocumento etul:SOAT ;
+    etul:numeroDocumento "SOAT-2026-0101" ;
+    etul:entidadEmisora "Aseguradora" ;
+    etul:fechaEmision "2026-02-01"^^xsd:date ;
+    etul:fechaVencimiento "2027-01-31"^^xsd:date .
+
+etul:DOC-002 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-001 ;
+    etul:tipoDocumento etul:RevisionTecnica ;
+    etul:numeroDocumento "RTV-2026-0455" ;
+    etul:entidadEmisora "Centro de inspección técnica" ;
+    etul:fechaEmision "2026-03-15"^^xsd:date ;
+    etul:fechaVencimiento "2026-09-15"^^xsd:date .
+
+etul:DOC-003 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-001 ;
+    etul:tipoDocumento etul:CertificadoGNV ;
+    etul:numeroDocumento "GNV-2026-0088" ;
+    etul:entidadEmisora "Entidad certificadora GNV" ;
+    etul:fechaEmision "2026-01-20"^^xsd:date ;
+    etul:fechaVencimiento "2027-01-20"^^xsd:date .
+
+etul:DOC-004 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-004 ;
+    etul:tipoDocumento etul:RevisionTecnica ;
+    etul:numeroDocumento "RTV-2026-0460" ;
+    etul:entidadEmisora "Centro de inspección técnica" ;
+    etul:fechaEmision "2026-03-20"^^xsd:date ;
+    etul:fechaVencimiento "2026-09-20"^^xsd:date .
+
+etul:DOC-005 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-006 ;
+    etul:tipoDocumento etul:RevisionTecnica ;
+    etul:numeroDocumento "RTV-2025-0912" ;
+    etul:entidadEmisora "Centro de inspección técnica" ;
+    etul:fechaEmision "2025-09-01"^^xsd:date ;
+    etul:fechaVencimiento "2026-09-01"^^xsd:date .
+
+etul:DOC-006 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-006 ;
+    etul:tipoDocumento etul:SOAT ;
+    etul:numeroDocumento "SOAT-2026-0106" ;
+    etul:entidadEmisora "Aseguradora" ;
+    etul:fechaEmision "2026-02-01"^^xsd:date ;
+    etul:fechaVencimiento "2027-01-31"^^xsd:date .
+
+etul:DOC-007 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-007 ;
+    etul:tipoDocumento etul:SOAT ;
+    etul:numeroDocumento "SOAT-2026-0201" ;
+    etul:entidadEmisora "Aseguradora" ;
+    etul:fechaEmision "2026-04-10"^^xsd:date ;
+    etul:fechaVencimiento "2027-04-09"^^xsd:date .
+
+etul:DOC-008 a owl:NamedIndividual , etul:DocumentoVehicular ;
+    etul:documentoDeVehiculo etul:VEH-010 ;
+    etul:tipoDocumento etul:RevisionTecnica ;
+    etul:numeroDocumento "RTV-2026-0501" ;
+    etul:entidadEmisora "Centro de inspección técnica" ;
+    etul:fechaEmision "2026-04-02"^^xsd:date ;
+    etul:fechaVencimiento "2026-10-02"^^xsd:date .
+
+# ---- Lectura (3) ----
+etul:LEC-001 a owl:NamedIndividual , etul:Lectura ;
+    etul:lecturaDeVehiculo etul:VEH-001 ;
+    etul:tipoLectura etul:Odometro ;
+    etul:fechaLectura "2026-09-10"^^xsd:date ;
+    etul:valorLectura "412800"^^xsd:decimal ;
+    etul:fuenteLectura "GPS" .
+
+etul:LEC-002 a owl:NamedIndividual , etul:Lectura ;
+    etul:lecturaDeVehiculo etul:VEH-004 ;
+    etul:tipoLectura etul:Odometro ;
+    etul:fechaLectura "2026-09-10"^^xsd:date ;
+    etul:valorLectura "468900"^^xsd:decimal ;
+    etul:fuenteLectura "GPS" .
+
+etul:LEC-003 a owl:NamedIndividual , etul:Lectura ;
+    etul:lecturaDeVehiculo etul:VEH-007 ;
+    etul:tipoLectura etul:Odometro ;
+    etul:fechaLectura "2026-09-10"^^xsd:date ;
+    etul:valorLectura "276300"^^xsd:decimal ;
+    etul:fuenteLectura "Manual" .
+
+# ---- Conductor (5) ----
+etul:CND-01 a owl:NamedIndividual , etul:Conductor ;
+    rdfs:label "J. Ccahuana"@es ;
+    etul:nombreCompleto "Julio Ccahuana Ramos" ;
+    etul:licenciaCategoria "A-IIIb" ;
+    etul:licenciaVence "2027-05-30"^^xsd:date ;
+    etul:aniosExperiencia "11"^^xsd:integer ;
+    etul:conductorHabilitadoEn etul:RUT-1100 , etul:RUT-1098 .
+
+etul:CND-02 a owl:NamedIndividual , etul:Conductor ;
+    rdfs:label "M. Huamán"@es ;
+    etul:nombreCompleto "Marco Huamán Pérez" ;
+    etul:licenciaCategoria "A-IIIb" ;
+    etul:licenciaVence "2026-11-15"^^xsd:date ;
+    etul:aniosExperiencia "7"^^xsd:integer ;
+    etul:conductorHabilitadoEn etul:RUT-1100 .
+
+etul:CND-03 a owl:NamedIndividual , etul:Conductor ;
+    rdfs:label "R. Espinoza"@es ;
+    etul:nombreCompleto "Rubén Espinoza Vargas" ;
+    etul:licenciaCategoria "A-IIIb" ;
+    etul:licenciaVence "2027-02-28"^^xsd:date ;
+    etul:aniosExperiencia "15"^^xsd:integer ;
+    etul:conductorHabilitadoEn etul:RUT-1098 , etul:RUT-1054 .
+
+etul:CND-04 a owl:NamedIndividual , etul:Conductor ;
+    rdfs:label "L. Quispe"@es ;
+    etul:nombreCompleto "Luis Quispe Mamani" ;
+    etul:licenciaCategoria "A-IIIa" ;
+    etul:licenciaVence "2026-12-20"^^xsd:date ;
+    etul:aniosExperiencia "5"^^xsd:integer ;
+    etul:conductorHabilitadoEn etul:RUT-1054 , etul:RUT-1488 .
+
+etul:CND-05 a owl:NamedIndividual , etul:Conductor ;
+    rdfs:label "A. Rojas"@es ;
+    etul:nombreCompleto "Andrés Rojas Chávez" ;
+    etul:licenciaCategoria "A-IIIa" ;
+    etul:licenciaVence "2027-08-01"^^xsd:date ;
+    etul:aniosExperiencia "9"^^xsd:integer ;
+    etul:conductorHabilitadoEn etul:RUT-1488 .
+
+# ---- Tecnico (5) ----
+etul:TEC-01 a owl:NamedIndividual , etul:Tecnico ;
+    rdfs:label "C. Ramírez"@es ;
+    etul:nombreCompleto "Carlos Ramírez Tello" ;
+    etul:tieneEspecialidad etul:EspMecanica , etul:EspNeumatica ;
+    etul:trabajaEnTurno etul:TurnoNoche ;
+    etul:tecnicoDeTaller etul:TAL-01 ;
+    etul:horasDisponiblesSemana "48"^^xsd:decimal ;
+    etul:costoHora "28"^^xsd:decimal ;
+    etul:certificaciones "Sistemas neumáticos de frenos" .
+
+etul:TEC-02 a owl:NamedIndividual , etul:Tecnico ;
+    rdfs:label "L. Torres"@es ;
+    etul:nombreCompleto "Lucía Torres Anchante" ;
+    etul:tieneEspecialidad etul:EspElectrica ;
+    etul:trabajaEnTurno etul:TurnoNoche ;
+    etul:tecnicoDeTaller etul:TAL-01 ;
+    etul:horasDisponiblesSemana "48"^^xsd:decimal ;
+    etul:costoHora "30"^^xsd:decimal .
+
+etul:TEC-03 a owl:NamedIndividual , etul:Tecnico ;
+    rdfs:label "J. Quispe"@es ;
+    etul:nombreCompleto "Jorge Quispe Vilca" ;
+    etul:tieneEspecialidad etul:EspFrenosSuspension , etul:EspNeumaticos ;
+    etul:trabajaEnTurno etul:TurnoTarde ;
+    etul:tecnicoDeTaller etul:TAL-01 ;
+    etul:horasDisponiblesSemana "48"^^xsd:decimal ;
+    etul:costoHora "26"^^xsd:decimal .
+
+etul:TEC-04 a owl:NamedIndividual , etul:Tecnico ;
+    rdfs:label "M. Salas"@es ;
+    etul:nombreCompleto "Miguel Salas Bravo" ;
+    etul:tieneEspecialidad etul:EspMecanica ;
+    etul:trabajaEnTurno etul:TurnoManana , etul:TurnoTarde ;
+    etul:tecnicoDeTaller etul:TAL-01 ;
+    etul:horasDisponiblesSemana "40"^^xsd:decimal ;
+    etul:costoHora "25"^^xsd:decimal .
+
+etul:TEC-05 a owl:NamedIndividual , etul:Tecnico ;
+    rdfs:label "P. Ayala"@es ;
+    etul:nombreCompleto "Pedro Ayala Contreras" ;
+    etul:tieneEspecialidad etul:EspGNV , etul:EspMecanica ;
+    etul:trabajaEnTurno etul:TurnoManana ;
+    etul:tecnicoDeTaller etul:TAL-01 ;
+    etul:horasDisponiblesSemana "40"^^xsd:decimal ;
+    etul:costoHora "32"^^xsd:decimal ;
+    etul:certificaciones "Conversión y mantenimiento GNV" .
+
+# ---- AsignacionRuta (9) ----
+etul:ASG-001 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-001 ;
+    etul:asignacionEnRuta etul:RUT-1100 ;
+    etul:fechaOperacion "2026-09-10"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoManana ;
+    etul:asignacionAConductor etul:CND-01 ;
+    etul:vueltasRealizadas "4"^^xsd:integer ;
+    etul:kmRecorridos "248"^^xsd:decimal ;
+    etul:cumplioProgramacion true .
+
+etul:ASG-002 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-003 ;
+    etul:asignacionEnRuta etul:RUT-1100 ;
+    etul:fechaOperacion "2026-09-10"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoManana ;
+    etul:asignacionAConductor etul:CND-02 ;
+    etul:vueltasRealizadas "4"^^xsd:integer ;
+    etul:kmRecorridos "248"^^xsd:decimal ;
+    etul:cumplioProgramacion true .
+
+etul:ASG-003 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-002 ;
+    etul:asignacionEnRuta etul:RUT-1100 ;
+    etul:fechaOperacion "2026-09-09"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoTarde ;
+    etul:asignacionAConductor etul:CND-02 ;
+    etul:vueltasRealizadas "2"^^xsd:integer ;
+    etul:kmRecorridos "124"^^xsd:decimal ;
+    etul:cumplioProgramacion false .
+
+etul:ASG-004 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-005 ;
+    etul:asignacionEnRuta etul:RUT-1098 ;
+    etul:fechaOperacion "2026-09-10"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoManana ;
+    etul:asignacionAConductor etul:CND-03 ;
+    etul:vueltasRealizadas "4"^^xsd:integer ;
+    etul:kmRecorridos "232"^^xsd:decimal ;
+    etul:cumplioProgramacion true .
+
+etul:ASG-005 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-004 ;
+    etul:asignacionEnRuta etul:RUT-1098 ;
+    etul:fechaOperacion "2026-09-08"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoManana ;
+    etul:asignacionAConductor etul:CND-03 ;
+    etul:vueltasRealizadas "1"^^xsd:integer ;
+    etul:kmRecorridos "58"^^xsd:decimal ;
+    etul:cumplioProgramacion false .
+
+etul:ASG-006 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-007 ;
+    etul:asignacionEnRuta etul:RUT-1054 ;
+    etul:fechaOperacion "2026-09-10"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoManana ;
+    etul:asignacionAConductor etul:CND-04 ;
+    etul:vueltasRealizadas "3"^^xsd:integer ;
+    etul:kmRecorridos "162"^^xsd:decimal ;
+    etul:cumplioProgramacion true .
+
+etul:ASG-007 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-011 ;
+    etul:asignacionEnRuta etul:RUT-1054 ;
+    etul:fechaOperacion "2026-09-10"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoTarde ;
+    etul:asignacionAConductor etul:CND-04 ;
+    etul:vueltasRealizadas "3"^^xsd:integer ;
+    etul:kmRecorridos "162"^^xsd:decimal ;
+    etul:cumplioProgramacion true .
+
+etul:ASG-008 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-009 ;
+    etul:asignacionEnRuta etul:RUT-1488 ;
+    etul:fechaOperacion "2026-09-10"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoManana ;
+    etul:asignacionAConductor etul:CND-05 ;
+    etul:vueltasRealizadas "3"^^xsd:integer ;
+    etul:kmRecorridos "162"^^xsd:decimal ;
+    etul:cumplioProgramacion true .
+
+etul:ASG-009 a owl:NamedIndividual , etul:AsignacionRuta ;
+    etul:asignacionDeVehiculo etul:VEH-010 ;
+    etul:asignacionEnRuta etul:RUT-1488 ;
+    etul:fechaOperacion "2026-09-10"^^xsd:date ;
+    etul:asignacionEnTurno etul:TurnoTarde ;
+    etul:asignacionAConductor etul:CND-05 ;
+    etul:vueltasRealizadas "3"^^xsd:integer ;
+    etul:kmRecorridos "162"^^xsd:decimal ;
+    etul:cumplioProgramacion true .
+
+# ---- Repuesto (7) ----
+etul:REP-001 a owl:NamedIndividual , etul:Repuesto ;
+    rdfs:label "Filtro de aceite ómnibus"@es ;
+    etul:codigoRepuesto "FA-OMN-01" ;
+    etul:tipoComponente etul:Motor ;
+    etul:aplicaACategoria etul:Omnibus ;
+    etul:unidadMedida "unidad" ;
+    etul:stockActual "9"^^xsd:decimal ;
+    etul:stockMinimo "4"^^xsd:decimal ;
+    etul:tiempoReposicionDias "5"^^xsd:integer ;
+    etul:costoUnitario "95"^^xsd:decimal .
+
+etul:REP-002 a owl:NamedIndividual , etul:Repuesto ;
+    rdfs:label "Juego de zapatas de freno ómnibus"@es ;
+    etul:codigoRepuesto "ZF-OMN-02" ;
+    etul:tipoComponente etul:Frenos ;
+    etul:aplicaACategoria etul:Omnibus ;
+    etul:unidadMedida "juego" ;
+    etul:stockActual "1"^^xsd:decimal ;
+    etul:stockMinimo "4"^^xsd:decimal ;
+    etul:tiempoReposicionDias "12"^^xsd:integer ;
+    etul:costoUnitario "720"^^xsd:decimal .
+
+etul:REP-003 a owl:NamedIndividual , etul:Repuesto ;
+    rdfs:label "Pulmón de freno"@es ;
+    etul:codigoRepuesto "PF-NEU-03" ;
+    etul:tipoComponente etul:SistemaNeumatico ;
+    etul:aplicaACategoria etul:Omnibus , etul:Microbus ;
+    etul:unidadMedida "unidad" ;
+    etul:stockActual "2"^^xsd:decimal ;
+    etul:stockMinimo "4"^^xsd:decimal ;
+    etul:tiempoReposicionDias "15"^^xsd:integer ;
+    etul:costoUnitario "480"^^xsd:decimal .
+
+etul:REP-004 a owl:NamedIndividual , etul:Repuesto ;
+    rdfs:label "Neumático 11R22.5"@es ;
+    etul:codigoRepuesto "NE-11R225" ;
+    etul:tipoComponente etul:Neumaticos ;
+    etul:aplicaACategoria etul:Omnibus , etul:Microbus ;
+    etul:unidadMedida "unidad" ;
+    etul:stockActual "10"^^xsd:decimal ;
+    etul:stockMinimo "8"^^xsd:decimal ;
+    etul:tiempoReposicionDias "7"^^xsd:integer ;
+    etul:costoUnitario "1250"^^xsd:decimal .
+
+etul:REP-005 a owl:NamedIndividual , etul:Repuesto ;
+    rdfs:label "Cilindro neumático de puerta"@es ;
+    etul:codigoRepuesto "CP-PUE-05" ;
+    etul:tipoComponente etul:PuertasServicio ;
+    etul:aplicaACategoria etul:Omnibus ;
+    etul:unidadMedida "unidad" ;
+    etul:stockActual "0"^^xsd:decimal ;
+    etul:stockMinimo "2"^^xsd:decimal ;
+    etul:tiempoReposicionDias "20"^^xsd:integer ;
+    etul:costoUnitario "640"^^xsd:decimal .
+
+etul:REP-006 a owl:NamedIndividual , etul:Repuesto ;
+    rdfs:label "Bolsa de aire de suspensión"@es ;
+    etul:codigoRepuesto "BA-SUS-06" ;
+    etul:tipoComponente etul:Suspension ;
+    etul:aplicaACategoria etul:Omnibus ;
+    etul:unidadMedida "unidad" ;
+    etul:stockActual "3"^^xsd:decimal ;
+    etul:stockMinimo "2"^^xsd:decimal ;
+    etul:tiempoReposicionDias "14"^^xsd:integer ;
+    etul:costoUnitario "890"^^xsd:decimal .
+
+etul:REP-007 a owl:NamedIndividual , etul:Repuesto ;
+    rdfs:label "Filtro de aceite microbús"@es ;
+    etul:codigoRepuesto "FA-MIC-07" ;
+    etul:tipoComponente etul:Motor ;
+    etul:aplicaACategoria etul:Microbus , etul:Coaster ;
+    etul:unidadMedida "unidad" ;
+    etul:stockActual "6"^^xsd:decimal ;
+    etul:stockMinimo "4"^^xsd:decimal ;
+    etul:tiempoReposicionDias "4"^^xsd:integer ;
+    etul:costoUnitario "58"^^xsd:decimal .
+
+# ---- Falla (5) ----
+etul:FAL-001 a owl:NamedIndividual , etul:Falla ;
+    rdfs:label "Puerta trasera padrón 102"@es ;
+    etul:fallaEnVehiculo etul:VEH-002 ;
+    etul:tipoComponente etul:PuertasServicio ;
+    etul:severidad etul:SeveridadAlta ;
+    etul:fechaReporte "2026-09-09T14:40:00"^^xsd:dateTime ;
+    etul:reportadaPorConductor etul:CND-02 ;
+    etul:fallaEnRuta etul:RUT-1100 ;
+    etul:descripcionFalla "La puerta trasera no cierra completamente, tuve que salir de ruta en Atocongo" ;
+    etul:causaRaiz "Cilindro neumático con fuga" ;
+    etul:detectadaEnRuta true ;
+    etul:kmAlReportar "398400"^^xsd:decimal .
+
+etul:FAL-002 a owl:NamedIndividual , etul:Falla ;
+    rdfs:label "Frenos padrón 104 (1)"@es ;
+    etul:fallaEnVehiculo etul:VEH-004 ;
+    etul:tipoComponente etul:Frenos ;
+    etul:severidad etul:SeveridadMedia ;
+    etul:fechaReporte "2026-07-03T10:15:00"^^xsd:dateTime ;
+    etul:reportadaPorConductor etul:CND-03 ;
+    etul:fallaEnRuta etul:RUT-1098 ;
+    etul:descripcionFalla "Pedal de freno esponjoso al bajar de Villa" ;
+    etul:causaRaiz "Zapatas desgastadas" ;
+    etul:detectadaEnRuta true ;
+    etul:kmAlReportar "462100"^^xsd:decimal .
+
+etul:FAL-003 a owl:NamedIndividual , etul:Falla ;
+    rdfs:label "Frenos padrón 104 (2)"@es ;
+    etul:fallaEnVehiculo etul:VEH-004 ;
+    etul:tipoComponente etul:Frenos ;
+    etul:severidad etul:SeveridadAlta ;
+    etul:fechaReporte "2026-08-14T16:30:00"^^xsd:dateTime ;
+    etul:reportadaPorConductor etul:CND-03 ;
+    etul:fallaEnRuta etul:RUT-1098 ;
+    etul:descripcionFalla "Se siente que el freno no agarra parejo en la parte delantera" ;
+    etul:causaRaiz "Tambor rayado" ;
+    etul:detectadaEnRuta true ;
+    etul:kmAlReportar "466200"^^xsd:decimal .
+
+etul:FAL-004 a owl:NamedIndividual , etul:Falla ;
+    rdfs:label "Frenos padrón 104 (3)"@es ;
+    etul:fallaEnVehiculo etul:VEH-004 ;
+    etul:tipoComponente etul:Frenos ;
+    etul:severidad etul:SeveridadCritica ;
+    etul:fechaReporte "2026-09-08T09:20:00"^^xsd:dateTime ;
+    etul:reportadaPorConductor etul:CND-03 ;
+    etul:fallaEnRuta etul:RUT-1098 ;
+    etul:descripcionFalla "Frenado insuficiente en la bajada de la Panamericana, dejé la unidad en el patio" ;
+    etul:causaRaiz "Por determinar" ;
+    etul:detectadaEnRuta true ;
+    etul:kmAlReportar "468900"^^xsd:decimal .
+
+etul:FAL-005 a owl:NamedIndividual , etul:Falla ;
+    rdfs:label "Suspensión microbús 201"@es ;
+    etul:fallaEnVehiculo etul:VEH-007 ;
+    etul:tipoComponente etul:Suspension ;
+    etul:severidad etul:SeveridadBaja ;
+    etul:fechaReporte "2026-08-25T12:05:00"^^xsd:dateTime ;
+    etul:reportadaPorConductor etul:CND-04 ;
+    etul:fallaEnRuta etul:RUT-1054 ;
+    etul:descripcionFalla "Ruido en la suspensión trasera al pasar rompemuelles" ;
+    etul:causaRaiz "Bocina de muelle desgastada" ;
+    etul:detectadaEnRuta true ;
+    etul:kmAlReportar "274100"^^xsd:decimal .
+
+# ---- OrdenTrabajo (16) ----
+etul:OT-0001 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Aceite padrón 101"@es ;
+    etul:ordenDeVehiculo etul:VEH-001 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-001 ;
+    etul:fechaProgramada "2026-07-14"^^xsd:date ;
+    etul:fechaInicioReal "2026-07-14T23:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-07-15T02:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "402000"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-01 ;
+    etul:ejecutadaEnBahia etul:BAH-01 ;
+    etul:horasHombre "3"^^xsd:decimal ;
+    etul:costoManoObra "84"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de aceite y filtros de motor" .
+
+etul:OT-0002 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Aceite padrón 102"@es ;
+    etul:ordenDeVehiculo etul:VEH-002 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-001 ;
+    etul:fechaProgramada "2026-06-20"^^xsd:date ;
+    etul:fechaInicioReal "2026-06-20T23:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-06-21T02:30:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "384000"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-01 ;
+    etul:ejecutadaEnBahia etul:BAH-01 ;
+    etul:horasHombre "3.5"^^xsd:decimal ;
+    etul:costoManoObra "98"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de aceite y filtros de motor" .
+
+etul:OT-0003 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Puerta trasera padrón 102"@es ;
+    etul:ordenDeVehiculo etul:VEH-002 ;
+    etul:tipoMantenimiento etul:Correctivo ;
+    etul:tipoComponente etul:PuertasServicio ;
+    etul:estadoOrden etul:BloqueadaPorRepuesto ;
+    etul:originadaPorFalla etul:FAL-001 ;
+    etul:fechaProgramada "2026-09-10"^^xsd:date ;
+    etul:fechaInicioReal "2026-09-09T20:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "398500"^^xsd:decimal ;
+    etul:prioridad "1"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-01 ;
+    etul:ejecutadaEnBahia etul:BAH-01 ;
+    etul:descripcionTrabajo "Cambio de cilindro neumático de puerta trasera" .
+
+etul:OT-0004 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Frenos padrón 103"@es ;
+    etul:ordenDeVehiculo etul:VEH-003 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Frenos ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-002 ;
+    etul:fechaProgramada "2026-08-05"^^xsd:date ;
+    etul:fechaInicioReal "2026-08-05T23:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-08-06T03:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "342000"^^xsd:decimal ;
+    etul:prioridad "2"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-03 ;
+    etul:ejecutadaEnBahia etul:BAH-02 ;
+    etul:horasHombre "4"^^xsd:decimal ;
+    etul:costoManoObra "104"^^xsd:decimal ;
+    etul:descripcionTrabajo "Revisión de frenos y sistema neumático" .
+
+etul:OT-0005 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Frenos padrón 104 (3)"@es ;
+    etul:ordenDeVehiculo etul:VEH-004 ;
+    etul:tipoMantenimiento etul:Correctivo ;
+    etul:tipoComponente etul:Frenos ;
+    etul:estadoOrden etul:BloqueadaPorRepuesto ;
+    etul:originadaPorFalla etul:FAL-004 ;
+    etul:fechaProgramada "2026-09-14"^^xsd:date ;
+    etul:fechaInicioReal "2026-09-08T11:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "468900"^^xsd:decimal ;
+    etul:prioridad "1"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-03 ;
+    etul:ejecutadaEnBahia etul:BAH-02 ;
+    etul:descripcionTrabajo "Cambio de zapatas y rectificado de tambores" .
+
+etul:OT-0006 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Frenos padrón 104 (1)"@es ;
+    etul:ordenDeVehiculo etul:VEH-004 ;
+    etul:tipoMantenimiento etul:Correctivo ;
+    etul:tipoComponente etul:Frenos ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:originadaPorFalla etul:FAL-002 ;
+    etul:fechaProgramada "2026-07-04"^^xsd:date ;
+    etul:fechaInicioReal "2026-07-04T22:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-07-05T04:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "462300"^^xsd:decimal ;
+    etul:prioridad "2"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-03 ;
+    etul:ejecutadaEnBahia etul:BAH-02 ;
+    etul:horasHombre "6"^^xsd:decimal ;
+    etul:costoManoObra "156"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de zapatas delanteras" .
+
+etul:OT-0007 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Frenos padrón 104 (2)"@es ;
+    etul:ordenDeVehiculo etul:VEH-004 ;
+    etul:tipoMantenimiento etul:Correctivo ;
+    etul:tipoComponente etul:Frenos ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:originadaPorFalla etul:FAL-003 ;
+    etul:fechaProgramada "2026-08-15"^^xsd:date ;
+    etul:fechaInicioReal "2026-08-15T22:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-08-16T08:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "466400"^^xsd:decimal ;
+    etul:prioridad "1"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-03 ;
+    etul:ejecutadaEnBahia etul:BAH-02 ;
+    etul:horasHombre "10"^^xsd:decimal ;
+    etul:costoManoObra "260"^^xsd:decimal ;
+    etul:descripcionTrabajo "Rectificado de tambores y cambio de zapatas" .
+
+etul:OT-0008 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Aceite padrón 105"@es ;
+    etul:ordenDeVehiculo etul:VEH-005 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-001 ;
+    etul:fechaProgramada "2026-08-18"^^xsd:date ;
+    etul:fechaInicioReal "2026-08-18T23:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-08-19T02:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "280000"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-04 ;
+    etul:ejecutadaEnBahia etul:BAH-01 ;
+    etul:horasHombre "3"^^xsd:decimal ;
+    etul:costoManoObra "75"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de aceite y filtros de motor" .
+
+etul:OT-0009 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Inspección GNV padrón 106"@es ;
+    etul:ordenDeVehiculo etul:VEH-006 ;
+    etul:tipoMantenimiento etul:Inspeccion ;
+    etul:tipoComponente etul:SistemaCombustible ;
+    etul:estadoOrden etul:Programada ;
+    etul:generadaPorTarea etul:TAR-006 ;
+    etul:fechaProgramada "2026-09-15"^^xsd:date ;
+    etul:prioridad "2"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-05 ;
+    etul:ejecutadaEnBahia etul:BAH-01 ;
+    etul:descripcionTrabajo "Inspección anual del sistema de gas natural" .
+
+etul:OT-0010 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Aceite microbús 201"@es ;
+    etul:ordenDeVehiculo etul:VEH-007 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-007 ;
+    etul:fechaProgramada "2026-08-01"^^xsd:date ;
+    etul:fechaInicioReal "2026-08-01T22:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-08-02T00:30:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "270000"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-04 ;
+    etul:ejecutadaEnBahia etul:BAH-03 ;
+    etul:horasHombre "2.5"^^xsd:decimal ;
+    etul:costoManoObra "63"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de aceite y filtros" .
+
+etul:OT-0011 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Suspensión microbús 201"@es ;
+    etul:ordenDeVehiculo etul:VEH-007 ;
+    etul:tipoMantenimiento etul:Correctivo ;
+    etul:tipoComponente etul:Suspension ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:originadaPorFalla etul:FAL-005 ;
+    etul:fechaProgramada "2026-08-26"^^xsd:date ;
+    etul:fechaInicioReal "2026-08-26T22:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-08-27T01:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "274300"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-03 ;
+    etul:ejecutadaEnBahia etul:BAH-03 ;
+    etul:horasHombre "3"^^xsd:decimal ;
+    etul:costoManoObra "78"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de bocinas de muelle trasero" .
+
+etul:OT-0012 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Neumáticos microbús 202"@es ;
+    etul:ordenDeVehiculo etul:VEH-008 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Neumaticos ;
+    etul:estadoOrden etul:Programada ;
+    etul:generadaPorTarea etul:TAR-003 ;
+    etul:fechaProgramada "2026-09-16"^^xsd:date ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-03 ;
+    etul:ejecutadaEnBahia etul:BAH-04 ;
+    etul:descripcionTrabajo "Rotación y calibración de neumáticos" .
+
+etul:OT-0013 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Aceite coaster 301"@es ;
+    etul:ordenDeVehiculo etul:VEH-010 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-009 ;
+    etul:fechaProgramada "2026-08-10"^^xsd:date ;
+    etul:fechaInicioReal "2026-08-10T22:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-08-11T00:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "218000"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-04 ;
+    etul:ejecutadaEnBahia etul:BAH-03 ;
+    etul:horasHombre "2"^^xsd:decimal ;
+    etul:costoManoObra "50"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de aceite y filtros" .
+
+etul:OT-0015 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Aceite padrón 104"@es ;
+    etul:ordenDeVehiculo etul:VEH-004 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-001 ;
+    etul:fechaProgramada "2026-05-12"^^xsd:date ;
+    etul:fechaInicioReal "2026-05-12T23:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-05-13T02:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "450300"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-01 ;
+    etul:ejecutadaEnBahia etul:BAH-01 ;
+    etul:horasHombre "3"^^xsd:decimal ;
+    etul:costoManoObra "84"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de aceite y filtros de motor" .
+
+etul:OT-0016 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Aceite padrón 106"@es ;
+    etul:ordenDeVehiculo etul:VEH-006 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-001 ;
+    etul:fechaProgramada "2026-06-08"^^xsd:date ;
+    etul:fechaInicioReal "2026-06-08T23:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-06-09T02:00:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "317700"^^xsd:decimal ;
+    etul:prioridad "3"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-05 ;
+    etul:ejecutadaEnBahia etul:BAH-01 ;
+    etul:horasHombre "3"^^xsd:decimal ;
+    etul:costoManoObra "96"^^xsd:decimal ;
+    etul:descripcionTrabajo "Cambio de aceite y filtros de motor" .
+
+etul:OT-0014 a owl:NamedIndividual , etul:OrdenTrabajo ;
+    rdfs:label "Servicio camioneta supervisión"@es ;
+    etul:ordenDeVehiculo etul:VEH-012 ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:tipoComponente etul:Motor ;
+    etul:estadoOrden etul:Cerrada ;
+    etul:generadaPorTarea etul:TAR-010 ;
+    etul:fechaProgramada "2026-06-05"^^xsd:date ;
+    etul:fechaInicioReal "2026-06-05T09:00:00"^^xsd:dateTime ;
+    etul:fechaFinReal "2026-06-05T10:30:00"^^xsd:dateTime ;
+    etul:kmAlIngreso "58000"^^xsd:decimal ;
+    etul:prioridad "4"^^xsd:integer ;
+    etul:asignadaATecnico etul:TEC-04 ;
+    etul:ejecutadaEnBahia etul:BAH-03 ;
+    etul:horasHombre "1.5"^^xsd:decimal ;
+    etul:costoManoObra "38"^^xsd:decimal ;
+    etul:descripcionTrabajo "Servicio general" .
+
+# ---- ConsumoRepuesto (6) ----
+etul:CON-001 a owl:NamedIndividual , etul:ConsumoRepuesto ;
+    etul:consumoEnOrden etul:OT-0001 ;
+    etul:repuestoConsumido etul:REP-001 ;
+    etul:cantidad "1"^^xsd:decimal .
+
+etul:CON-002 a owl:NamedIndividual , etul:ConsumoRepuesto ;
+    etul:consumoEnOrden etul:OT-0003 ;
+    etul:repuestoConsumido etul:REP-005 ;
+    etul:cantidad "1"^^xsd:decimal .
+
+etul:CON-003 a owl:NamedIndividual , etul:ConsumoRepuesto ;
+    etul:consumoEnOrden etul:OT-0005 ;
+    etul:repuestoConsumido etul:REP-002 ;
+    etul:cantidad "2"^^xsd:decimal .
+
+etul:CON-004 a owl:NamedIndividual , etul:ConsumoRepuesto ;
+    etul:consumoEnOrden etul:OT-0006 ;
+    etul:repuestoConsumido etul:REP-002 ;
+    etul:cantidad "1"^^xsd:decimal .
+
+etul:CON-005 a owl:NamedIndividual , etul:ConsumoRepuesto ;
+    etul:consumoEnOrden etul:OT-0007 ;
+    etul:repuestoConsumido etul:REP-002 ;
+    etul:cantidad "2"^^xsd:decimal .
+
+etul:CON-006 a owl:NamedIndividual , etul:ConsumoRepuesto ;
+    etul:consumoEnOrden etul:OT-0010 ;
+    etul:repuestoConsumido etul:REP-007 ;
+    etul:cantidad "1"^^xsd:decimal .
+
+# ---- RegistroEstado (12) ----
+etul:EST-001 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-001 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-07-14T23:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-07-15T02:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "3"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0001 .
+
+etul:EST-002 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-002 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-06-20T23:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-06-21T02:30:00"^^xsd:dateTime ;
+    etul:duracionHoras "3.5"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0002 .
+
+etul:EST-003 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-002 ;
+    etul:estadoRegistrado etul:EsperandoRepuesto ;
+    etul:fechaInicio "2026-09-09T20:00:00"^^xsd:dateTime ;
+    etul:ordenRelacionada etul:OT-0003 .
+
+etul:EST-004 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-003 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-08-05T23:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-08-06T03:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "4"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0004 .
+
+etul:EST-005 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-004 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-07-04T22:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-07-05T04:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "6"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0006 .
+
+etul:EST-006 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-004 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-08-15T22:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-08-16T08:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "10"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0007 .
+
+etul:EST-007 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-004 ;
+    etul:estadoRegistrado etul:EsperandoRepuesto ;
+    etul:fechaInicio "2026-09-08T11:00:00"^^xsd:dateTime ;
+    etul:ordenRelacionada etul:OT-0005 .
+
+etul:EST-008 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-005 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-08-18T23:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-08-19T02:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "3"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0008 .
+
+etul:EST-009 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-006 ;
+    etul:estadoRegistrado etul:DocumentoVencido ;
+    etul:fechaInicio "2026-09-02T06:00:00"^^xsd:dateTime .
+
+etul:EST-011 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-004 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-05-12T23:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-05-13T02:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "3"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0015 .
+
+etul:EST-012 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-006 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-06-08T23:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-06-09T02:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "3"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0016 .
+
+etul:EST-010 a owl:NamedIndividual , etul:RegistroEstado ;
+    etul:estadoDeVehiculo etul:VEH-007 ;
+    etul:estadoRegistrado etul:EnTaller ;
+    etul:fechaInicio "2026-08-26T22:00:00"^^xsd:dateTime ;
+    etul:fechaFin "2026-08-27T01:00:00"^^xsd:dateTime ;
+    etul:duracionHoras "3"^^xsd:decimal ;
+    etul:ordenRelacionada etul:OT-0011 .
+
+# ---- Experto (3) ----
+etul:EXP-01 a owl:NamedIndividual , etul:Experto ;
+    rdfs:label "R. Paredes"@es ;
+    etul:nombreCompleto "Roberto Paredes Sánchez" ;
+    etul:rolExperto etul:RolJefeMantenimiento ;
+    etul:aniosExperiencia "18"^^xsd:integer .
+
+etul:EXP-02 a owl:NamedIndividual , etul:Experto ;
+    rdfs:label "A. Castillo"@es ;
+    etul:nombreCompleto "Ana Castillo Núñez" ;
+    etul:rolExperto etul:RolProgramadorFlota ;
+    etul:aniosExperiencia "9"^^xsd:integer .
+
+etul:EXP-03 a owl:NamedIndividual , etul:Experto ;
+    rdfs:label "H. Villanueva"@es ;
+    etul:nombreCompleto "Héctor Villanueva Ríos" ;
+    etul:rolExperto etul:RolJefeOperaciones ;
+    etul:aniosExperiencia "12"^^xsd:integer .
+
+# ---- SesionEntrevista (2) ----
+etul:SES-01 a owl:NamedIndividual , etul:SesionEntrevista ;
+    etul:numeroSesion "1"^^xsd:integer ;
+    etul:fechaSesion "2026-09-02"^^xsd:date ;
+    etul:entrevistado etul:EXP-01 , etul:EXP-02 ;
+    etul:bloqueTematico "B1 Vocabulario y clasificación" ;
+    etul:duracionMinutos "75"^^xsd:integer ;
+    etul:archivoGrabacion "grabaciones/sesion01.mp3" .
+
+etul:SES-02 a owl:NamedIndividual , etul:SesionEntrevista ;
+    etul:numeroSesion "2"^^xsd:integer ;
+    etul:fechaSesion "2026-09-09"^^xsd:date ;
+    etul:entrevistado etul:EXP-01 , etul:EXP-02 , etul:EXP-03 ;
+    etul:bloqueTematico "B2 a B4 Restricciones, prioridades y preferencias" ;
+    etul:duracionMinutos "90"^^xsd:integer ;
+    etul:archivoGrabacion "grabaciones/sesion02.mp3" .
+
+# ---- ReglaExperto (5) ----
+etul:REG-001 a owl:NamedIndividual , etul:ReglaExperto ;
+    etul:textoOriginal "La ruta 1100 nunca sale con menos de tres unidades, así tenga que mover un bus de la 1054" ;
+    etul:tipoRegla etul:ReglaDura ;
+    etul:estadoValidacion etul:Aprobada ;
+    etul:condicion "Menos de 3 unidades operativas asignadas a la ruta 1100" ;
+    etul:accion "Reasignar una unidad compatible de otra ruta antes de programar mantenimiento" ;
+    etul:aplicaACategoria etul:Omnibus ;
+    etul:aplicaARuta etul:RUT-1100 ;
+    etul:parametroNombre "minimoUnidadesRuta" ;
+    etul:parametroValor "3"^^xsd:decimal ;
+    etul:motivo "Frecuencia comprometida en la autorización de ruta" ;
+    etul:fuenteExperto etul:EXP-03 ;
+    etul:capturadaEnSesion etul:SES-02 ;
+    etul:idPreguntaOrigen "P-0208" ;
+    etul:validadaPor etul:EXP-01 ;
+    etul:fechaValidacion "2026-09-10"^^xsd:date .
+
+etul:REG-002 a owl:NamedIndividual , etul:ReglaExperto ;
+    etul:textoOriginal "Todo preventivo de bus se hace de noche, en el patio, cuando la unidad ya terminó su recorrido" ;
+    etul:tipoRegla etul:ReglaDura ;
+    etul:estadoValidacion etul:Aprobada ;
+    etul:condicion "Orden preventiva sobre una unidad que opera en ruta" ;
+    etul:accion "Programar el ingreso entre las 23:00 y las 05:00" ;
+    etul:aplicaACategoria etul:Omnibus , etul:Microbus , etul:Coaster ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:parametroNombre "horaInicioVentanaNocturna" ;
+    etul:parametroValor "23"^^xsd:decimal ;
+    etul:motivo "Sacar una unidad de día significa dejar de cubrir frecuencias" ;
+    etul:fuenteExperto etul:EXP-01 ;
+    etul:capturadaEnSesion etul:SES-02 ;
+    etul:idPreguntaOrigen "P-0360" ;
+    etul:validadaPor etul:EXP-02 ;
+    etul:fechaValidacion "2026-09-10"^^xsd:date .
+
+etul:REG-003 a owl:NamedIndividual , etul:ReglaExperto ;
+    etul:textoOriginal "Si le falta menos de mil kilómetros para el siguiente servicio, se lo adelanto y aprovecho la entrada" ;
+    etul:tipoRegla etul:ReglaHeuristica ;
+    etul:estadoValidacion etul:Pendiente ;
+    etul:condicion "Dos tareas preventivas vencen con menos de 1000 km de diferencia" ;
+    etul:accion "Agrupar ambas en una sola entrada al taller" ;
+    etul:aplicaACategoria etul:Omnibus ;
+    etul:tipoMantenimiento etul:Preventivo ;
+    etul:parametroNombre "margenAgrupacionKm" ;
+    etul:parametroValor "1000"^^xsd:decimal ;
+    etul:motivo "Evitar dos noches de taller para la misma unidad" ;
+    etul:fuenteExperto etul:EXP-02 ;
+    etul:capturadaEnSesion etul:SES-02 ;
+    etul:idPreguntaOrigen "P-0398" .
+
+etul:REG-004 a owl:NamedIndividual , etul:ReglaExperto ;
+    etul:textoOriginal "Cuando falta un mes para la revisión técnica, esa unidad entra primero al taller" ;
+    etul:tipoRegla etul:ReglaPrioridad ;
+    etul:estadoValidacion etul:Aprobada ;
+    etul:condicion "Revisión técnica vence en 30 días o menos" ;
+    etul:accion "Elevar la prioridad de la orden y programar antes que el resto" ;
+    etul:aplicaACategoria etul:Omnibus , etul:Microbus , etul:Coaster ;
+    etul:parametroNombre "diasAntesRevisionTecnica" ;
+    etul:parametroValor "30"^^xsd:decimal ;
+    etul:motivo "Una unidad sin revisión técnica no puede circular" ;
+    etul:fuenteExperto etul:EXP-01 ;
+    etul:capturadaEnSesion etul:SES-02 ;
+    etul:idPreguntaOrigen "P-0217" ;
+    etul:validadaPor etul:EXP-03 ;
+    etul:fechaValidacion "2026-09-10"^^xsd:date .
+
+etul:REG-005 a owl:NamedIndividual , etul:ReglaExperto ;
+    etul:textoOriginal "Si un bus reporta tres veces lo mismo en tres meses, ya no es la pieza, es otra cosa" ;
+    etul:tipoRegla etul:ReglaHeuristica ;
+    etul:estadoValidacion etul:Pendiente ;
+    etul:condicion "3 o más fallas del mismo componente en 90 días" ;
+    etul:accion "Abrir revisión de causa raíz antes de volver a reparar" ;
+    etul:aplicaACategoria etul:Omnibus ;
+    etul:tipoMantenimiento etul:Correctivo ;
+    etul:tipoComponente etul:Frenos ;
+    etul:parametroNombre "fallasEn90Dias" ;
+    etul:parametroValor "3"^^xsd:decimal ;
+    etul:motivo "Evitar reparaciones repetidas sin resolver el origen" ;
+    etul:fuenteExperto etul:EXP-01 ;
+    etul:capturadaEnSesion etul:SES-02 ;
+    etul:idPreguntaOrigen "P-0623" .
+
+# ---- AjusteCalendario (4) ----
+etul:AJU-001 a owl:NamedIndividual , etul:AjusteCalendario ;
+    etul:ajusteDeOrden etul:OT-0005 ;
+    etul:motivoAjuste etul:MotivoRepuesto ;
+    etul:fechaAjuste "2026-09-08T12:00:00"^^xsd:dateTime ;
+    etul:fechaAnterior "2026-09-09"^^xsd:date ;
+    etul:fechaNueva "2026-09-14"^^xsd:date ;
+    etul:realizadoPor etul:EXP-02 ;
+    etul:comentarioAjuste "Zapatas de freno sin stock, reposición en 12 días" .
+
+etul:AJU-002 a owl:NamedIndividual , etul:AjusteCalendario ;
+    etul:ajusteDeOrden etul:OT-0003 ;
+    etul:motivoAjuste etul:MotivoRepuesto ;
+    etul:fechaAjuste "2026-09-09T21:00:00"^^xsd:dateTime ;
+    etul:fechaAnterior "2026-09-09"^^xsd:date ;
+    etul:fechaNueva "2026-09-10"^^xsd:date ;
+    etul:realizadoPor etul:EXP-02 ;
+    etul:comentarioAjuste "Cilindro de puerta sin stock" .
+
+etul:AJU-003 a owl:NamedIndividual , etul:AjusteCalendario ;
+    etul:ajusteDeOrden etul:OT-0012 ;
+    etul:motivoAjuste etul:MotivoOperacion ;
+    etul:fechaAjuste "2026-09-07T09:00:00"^^xsd:dateTime ;
+    etul:fechaAnterior "2026-09-11"^^xsd:date ;
+    etul:fechaNueva "2026-09-16"^^xsd:date ;
+    etul:realizadoPor etul:EXP-02 ;
+    etul:reglaCandidata etul:REG-001 ;
+    etul:comentarioAjuste "Se necesitaba la unidad para cubrir la 1488" .
+
+etul:AJU-004 a owl:NamedIndividual , etul:AjusteCalendario ;
+    etul:ajusteDeOrden etul:OT-0009 ;
+    etul:motivoAjuste etul:MotivoDocumento ;
+    etul:fechaAjuste "2026-09-02T08:00:00"^^xsd:dateTime ;
+    etul:fechaAnterior "2026-09-20"^^xsd:date ;
+    etul:fechaNueva "2026-09-15"^^xsd:date ;
+    etul:realizadoPor etul:EXP-01 ;
+    etul:reglaCandidata etul:REG-004 ;
+    etul:comentarioAjuste "La unidad quedó retenida por revisión técnica vencida" .
+
+# ---- ModeloLLM (3) ----
+etul:LLM-01 a owl:NamedIndividual , etul:ModeloLLM ;
+    rdfs:label "Modelo de extracción"@es ;
+    etul:nombreModelo "modelo-extraccion" ;
+    etul:proveedorModelo "Por definir" ;
+    etul:versionModelo "v1-2026-09" ;
+    etul:ejecucionLocal false ;
+    etul:tareaDelModelo etul:TareaExtraccion .
+
+etul:LLM-02 a owl:NamedIndividual , etul:ModeloLLM ;
+    rdfs:label "Modelo de consultas"@es ;
+    etul:nombreModelo "modelo-consultas" ;
+    etul:proveedorModelo "Por definir" ;
+    etul:versionModelo "v1-2026-09" ;
+    etul:ejecucionLocal false ;
+    etul:tareaDelModelo etul:TareaTraduccion , etul:TareaRedaccion .
+
+etul:LLM-03 a owl:NamedIndividual , etul:ModeloLLM ;
+    rdfs:label "Modelo local de contraste"@es ;
+    etul:nombreModelo "modelo-local" ;
+    etul:proveedorModelo "Modelo abierto" ;
+    etul:versionModelo "v1-2026-09" ;
+    etul:ejecucionLocal true ;
+    etul:tareaDelModelo etul:TareaExtraccion , etul:TareaTraduccion .
+
+# ---- FuenteTextual (4) ----
+etul:FUE-001 a owl:NamedIndividual , etul:FuenteTextual ;
+    rdfs:label "Reporte de conductor, padrón 102, 09-09"@es ;
+    etul:tipoFuente etul:ReporteConductor ;
+    etul:fechaFuente "2026-09-09"^^xsd:date ;
+    etul:fuenteRedactadaPor etul:CND-02 ;
+    etul:fuenteSobreVehiculo etul:VEH-002 ;
+    etul:rutaArchivo "corpus/reportes/2026-09-09-102.txt" ;
+    etul:numeroPalabras "38"^^xsd:integer ;
+    etul:textoFuente "Salí a las 14:00 del terminal. A la altura de Atocongo la puerta trasera no cerraba bien, se quedaba abierta unos centímetros. Avisé al controlador y regresé al patio a las 15:40. La unidad hizo solo dos vueltas." .
+
+etul:FUE-002 a owl:NamedIndividual , etul:FuenteTextual ;
+    rdfs:label "Reporte de conductor, padrón 104, 08-09"@es ;
+    etul:tipoFuente etul:ReporteConductor ;
+    etul:fechaFuente "2026-09-08"^^xsd:date ;
+    etul:fuenteRedactadaPor etul:CND-03 ;
+    etul:fuenteSobreVehiculo etul:VEH-004 ;
+    etul:rutaArchivo "corpus/reportes/2026-09-08-104.txt" ;
+    etul:numeroPalabras "42"^^xsd:integer ;
+    etul:textoFuente "En la bajada de la Panamericana el freno no respondió como debe, tuve que usar el motor para bajar la velocidad. Es la tercera vez en tres meses que reporto lo mismo con esta unidad. Dejé el bus en el patio y no continué el recorrido." .
+
+etul:FUE-003 a owl:NamedIndividual , etul:FuenteTextual ;
+    rdfs:label "Transcripción de la sesión 2"@es ;
+    etul:tipoFuente etul:TranscripcionEntrevista ;
+    etul:fechaFuente "2026-09-09"^^xsd:date ;
+    etul:fuenteRedactadaPor etul:EXP-02 ;
+    etul:fuenteDeSesion etul:SES-02 ;
+    etul:rutaArchivo "corpus/entrevistas/sesion02.txt" ;
+    etul:numeroPalabras "65"^^xsd:integer ;
+    etul:textoFuente "Mira, todo lo que es preventivo de bus lo hacemos de noche, cuando la unidad ya terminó su recorrido y está en el patio. Sacar un bus de día es dejar de cubrir frecuencias y eso no me lo perdona operaciones. Y la 1100 nunca sale con menos de tres unidades, así tenga que mover un bus de la 1054." .
+
+etul:FUE-004 a owl:NamedIndividual , etul:FuenteTextual ;
+    rdfs:label "Parte diario de operación, 10-09"@es ;
+    etul:tipoFuente etul:ParteDiario ;
+    etul:fechaFuente "2026-09-10"^^xsd:date ;
+    etul:fuenteRedactadaPor etul:EXP-03 ;
+    etul:rutaArchivo "corpus/partes/2026-09-10.txt" ;
+    etul:numeroPalabras "30"^^xsd:integer ;
+    etul:textoFuente "Ruta 1100 operó con dos unidades en el turno mañana por indisponibilidad del padrón 102. Ruta 1098 operó con una unidad menos. El padrón 106 sigue retenido por revisión técnica." .
+
+# ---- ExtraccionLLM (8) ----
+etul:EXT-001 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-001 ;
+    etul:generadaPorModelo etul:LLM-01 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "VEH-002" ;
+    etul:predicadoPropuesto "etul:tipoComponente" ;
+    etul:objetoPropuesto "PuertasServicio" ;
+    etul:fragmentoEvidencia "la puerta trasera no cerraba bien" ;
+    etul:confianza "0.94"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T08:15:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtAceptada ;
+    etul:revisadaPor etul:EXP-01 ;
+    etul:comentarioRevision "Correcto, coincide con la falla registrada" ;
+    etul:materializadaEn etul:FAL-001 .
+
+etul:EXT-002 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-001 ;
+    etul:generadaPorModelo etul:LLM-01 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "ASG-003" ;
+    etul:predicadoPropuesto "etul:vueltasRealizadas" ;
+    etul:objetoPropuesto "2" ;
+    etul:fragmentoEvidencia "La unidad hizo solo dos vueltas" ;
+    etul:confianza "0.88"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T08:15:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtAceptada ;
+    etul:revisadaPor etul:EXP-02 ;
+    etul:materializadaEn etul:ASG-003 .
+
+etul:EXT-003 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-002 ;
+    etul:generadaPorModelo etul:LLM-01 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "VEH-004" ;
+    etul:predicadoPropuesto "etul:severidad" ;
+    etul:objetoPropuesto "SeveridadCritica" ;
+    etul:fragmentoEvidencia "el freno no respondió como debe" ;
+    etul:confianza "0.81"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T08:20:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtAceptada ;
+    etul:revisadaPor etul:EXP-01 ;
+    etul:comentarioRevision "El conductor no usa la palabra crítica, pero el hecho lo justifica" ;
+    etul:materializadaEn etul:FAL-004 .
+
+etul:EXT-004 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-002 ;
+    etul:generadaPorModelo etul:LLM-01 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "VEH-004" ;
+    etul:predicadoPropuesto "etul:causaRaiz" ;
+    etul:objetoPropuesto "Zapatas desgastadas" ;
+    etul:fragmentoEvidencia "es la tercera vez en tres meses que reporto lo mismo" ;
+    etul:confianza "0.52"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T08:20:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtRechazada ;
+    etul:revisadaPor etul:EXP-01 ;
+    etul:comentarioRevision "El modelo infirió una causa que el texto no afirma. Caso de alucinación." .
+
+etul:EXT-005 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-003 ;
+    etul:generadaPorModelo etul:LLM-01 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "Regla nueva" ;
+    etul:predicadoPropuesto "etul:condicion" ;
+    etul:objetoPropuesto "Orden preventiva sobre una unidad que opera en ruta" ;
+    etul:fragmentoEvidencia "todo lo que es preventivo de bus lo hacemos de noche" ;
+    etul:confianza "0.91"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T09:00:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtAceptada ;
+    etul:revisadaPor etul:EXP-02 ;
+    etul:materializadaEn etul:REG-002 .
+
+etul:EXT-006 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-003 ;
+    etul:generadaPorModelo etul:LLM-01 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "Regla nueva" ;
+    etul:predicadoPropuesto "etul:parametroValor" ;
+    etul:objetoPropuesto "3" ;
+    etul:fragmentoEvidencia "la 1100 nunca sale con menos de tres unidades" ;
+    etul:confianza "0.96"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T09:00:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtAceptada ;
+    etul:revisadaPor etul:EXP-02 ;
+    etul:materializadaEn etul:REG-001 .
+
+etul:EXT-007 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-004 ;
+    etul:generadaPorModelo etul:LLM-03 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "VEH-006" ;
+    etul:predicadoPropuesto "etul:estadoActual" ;
+    etul:objetoPropuesto "DocumentoVencido" ;
+    etul:fragmentoEvidencia "El padrón 106 sigue retenido por revisión técnica" ;
+    etul:confianza "0.89"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T18:00:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtAceptada ;
+    etul:revisadaPor etul:EXP-03 ;
+    etul:materializadaEn etul:VEH-006 .
+
+etul:EXT-008 a owl:NamedIndividual , etul:ExtraccionLLM ;
+    etul:derivadaDeFuente etul:FUE-004 ;
+    etul:generadaPorModelo etul:LLM-03 ;
+    etul:versionPrompt "extraccion-v1" ;
+    etul:sujetoPropuesto "RUT-1098" ;
+    etul:predicadoPropuesto "etul:unidadesRequeridas" ;
+    etul:objetoPropuesto "2" ;
+    etul:fragmentoEvidencia "Ruta 1098 operó con una unidad menos" ;
+    etul:confianza "0.44"^^xsd:decimal ;
+    etul:fechaExtraccion "2026-09-10T18:00:00"^^xsd:dateTime ;
+    etul:estadoExtraccion etul:ExtRechazada ;
+    etul:revisadaPor etul:EXP-02 ;
+    etul:comentarioRevision "Confunde lo que ocurrió con lo que la ruta requiere. El requerimiento sigue siendo 3." .
+
+# ---- ConsultaNL (5) ----
+etul:CNL-001 a owl:NamedIndividual , etul:ConsultaNL ;
+    etul:textoPregunta "¿Qué ómnibus tienen el servicio de motor vencido?" ;
+    etul:idPreguntaCompetencia "CQ-001" ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:versionPrompt "sparql-v1" ;
+    etul:intentoNumero "1"^^xsd:integer ;
+    etul:consultaGenerada "SELECT ?placa WHERE { ?v flota:categoria flota:Omnibus ; flota:placa ?placa ; flota:kmActual ?km }" ;
+    etul:consultaEjecutable true ;
+    etul:numeroResultados "6"^^xsd:integer ;
+    etul:fechaConsulta "2026-09-11T10:00:00"^^xsd:dateTime .
+
+etul:CNL-002 a owl:NamedIndividual , etul:ConsultaNL ;
+    etul:textoPregunta "¿Qué ómnibus tienen el servicio de motor vencido?" ;
+    etul:idPreguntaCompetencia "CQ-001" ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:versionPrompt "sparql-v2" ;
+    etul:intentoNumero "2"^^xsd:integer ;
+    etul:respondePreguntaDe etul:CNL-001 ;
+    etul:consultaGenerada "Consulta Q01 completa con el cálculo de vencimiento por kilometraje" ;
+    etul:consultaEjecutable true ;
+    etul:numeroResultados "2"^^xsd:integer ;
+    etul:fechaConsulta "2026-09-11T10:05:00"^^xsd:dateTime .
+
+etul:CNL-003 a owl:NamedIndividual , etul:ConsultaNL ;
+    etul:textoPregunta "¿Cuántas unidades puedo meter al taller esta noche sin dejar la 1100 sin cobertura?" ;
+    etul:idPreguntaCompetencia "CQ-185" ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:versionPrompt "sparql-v2" ;
+    etul:intentoNumero "1"^^xsd:integer ;
+    etul:consultaGenerada "Consulta Q15 con el mínimo de unidades por ruta tomado de ReglaExperto" ;
+    etul:consultaEjecutable true ;
+    etul:numeroResultados "1"^^xsd:integer ;
+    etul:fechaConsulta "2026-09-11T10:20:00"^^xsd:dateTime .
+
+etul:CNL-004 a owl:NamedIndividual , etul:ConsultaNL ;
+    etul:textoPregunta "¿Qué buses se van a quedar sin revisión técnica el próximo mes?" ;
+    etul:idPreguntaCompetencia "CQ-030" ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:versionPrompt "sparql-v2" ;
+    etul:intentoNumero "1"^^xsd:integer ;
+    etul:consultaGenerada "Consulta Q16 sobre DocumentoVehicular con filtro de fecha" ;
+    etul:consultaEjecutable true ;
+    etul:numeroResultados "3"^^xsd:integer ;
+    etul:fechaConsulta "2026-09-11T10:30:00"^^xsd:dateTime .
+
+etul:CNL-005 a owl:NamedIndividual , etul:ConsultaNL ;
+    etul:textoPregunta "¿Cuál es el bus que más plata nos ha costado este año?" ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:versionPrompt "sparql-v2" ;
+    etul:intentoNumero "1"^^xsd:integer ;
+    etul:consultaGenerada "Suma de costoManoObra y costo de repuestos por vehículo" ;
+    etul:consultaEjecutable true ;
+    etul:numeroResultados "12"^^xsd:integer ;
+    etul:fechaConsulta "2026-09-11T10:40:00"^^xsd:dateTime .
+
+# ---- RespuestaGenerada (5) ----
+etul:RES-001 a owl:NamedIndividual , etul:RespuestaGenerada ;
+    etul:respondeConsulta etul:CNL-002 ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:textoRespuesta "Tres ómnibus tienen el servicio de motor vencido: el padrón 102 (placa B2D-746), con 2500 km de exceso; el padrón 104 (placa B2D-748), con 6600 km; y el padrón 106 (placa B2D-750), con 2000 km. Los otros tres están dentro del intervalo." ;
+    etul:fundamentadaEn etul:VEH-002 , etul:VEH-004 , etul:VEH-006 , etul:TAR-001 ;
+    etul:numeroHechosCitados "4"^^xsd:integer ;
+    etul:declaroSinDatos false ;
+    etul:fechaGeneracion "2026-09-11T10:06:00"^^xsd:dateTime .
+
+etul:RES-002 a owl:NamedIndividual , etul:RespuestaGenerada ;
+    etul:respondeConsulta etul:CNL-003 ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:textoRespuesta "Ninguna unidad de la ruta 1100 puede ingresar esta noche. La regla aprobada REG-001 exige tres unidades operativas y hoy solo hay dos disponibles, porque el padrón 102 está esperando repuesto." ;
+    etul:fundamentadaEn etul:REG-001 , etul:VEH-001 , etul:VEH-002 , etul:VEH-003 , etul:RUT-1100 ;
+    etul:numeroHechosCitados "5"^^xsd:integer ;
+    etul:declaroSinDatos false ;
+    etul:fechaGeneracion "2026-09-11T10:21:00"^^xsd:dateTime .
+
+etul:RES-003 a owl:NamedIndividual , etul:RespuestaGenerada ;
+    etul:respondeConsulta etul:CNL-004 ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:textoRespuesta "Tres unidades vencen revisión técnica en los próximos 30 días: el padrón 101 el 15 de septiembre, el padrón 104 el 20 de septiembre y el coaster 301 el 2 de octubre. El padrón 106 ya la tiene vencida desde el 1 de septiembre." ;
+    etul:fundamentadaEn etul:DOC-002 , etul:DOC-004 , etul:DOC-008 , etul:DOC-005 ;
+    etul:numeroHechosCitados "4"^^xsd:integer ;
+    etul:declaroSinDatos false ;
+    etul:fechaGeneracion "2026-09-11T10:31:00"^^xsd:dateTime .
+
+etul:RES-004 a owl:NamedIndividual , etul:RespuestaGenerada ;
+    etul:respondeConsulta etul:CNL-005 ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:textoRespuesta "El grafo solo tiene el costo de mano de obra de las órdenes cerradas y el costo unitario de los repuestos, pero no registra combustible ni servicios externos, así que no puedo dar el costo total por unidad." ;
+    etul:numeroHechosCitados "0"^^xsd:integer ;
+    etul:declaroSinDatos true ;
+    etul:fechaGeneracion "2026-09-11T10:41:00"^^xsd:dateTime .
+
+etul:RES-005 a owl:NamedIndividual , etul:RespuestaGenerada ;
+    etul:respondeConsulta etul:CNL-001 ;
+    etul:generadaPorModelo etul:LLM-02 ;
+    etul:textoRespuesta "Los seis ómnibus de la flota tienen el servicio de motor vencido." ;
+    etul:fundamentadaEn etul:VEH-001 , etul:VEH-002 , etul:VEH-003 , etul:VEH-004 , etul:VEH-005 , etul:VEH-006 ;
+    etul:numeroHechosCitados "6"^^xsd:integer ;
+    etul:declaroSinDatos false ;
+    etul:fechaGeneracion "2026-09-11T10:01:00"^^xsd:dateTime .
+
+# ---- EvaluacionRespuesta (5) ----
+etul:EVA-001 a owl:NamedIndividual , etul:EvaluacionRespuesta ;
+    etul:evaluaRespuesta etul:RES-001 ;
+    etul:veredicto etul:Correcta ;
+    etul:evaluadaPor etul:EXP-01 ;
+    etul:hechosCorrectos "4"^^xsd:integer ;
+    etul:hechosIncorrectos "0"^^xsd:integer ;
+    etul:fechaEvaluacion "2026-09-11"^^xsd:date ;
+    etul:comentarioEvaluacion "Coincide con el cálculo manual" .
+
+etul:EVA-002 a owl:NamedIndividual , etul:EvaluacionRespuesta ;
+    etul:evaluaRespuesta etul:RES-002 ;
+    etul:veredicto etul:Correcta ;
+    etul:evaluadaPor etul:EXP-02 ;
+    etul:hechosCorrectos "5"^^xsd:integer ;
+    etul:hechosIncorrectos "0"^^xsd:integer ;
+    etul:fechaEvaluacion "2026-09-11"^^xsd:date ;
+    etul:comentarioEvaluacion "Aplicó bien la regla del programador" .
+
+etul:EVA-003 a owl:NamedIndividual , etul:EvaluacionRespuesta ;
+    etul:evaluaRespuesta etul:RES-003 ;
+    etul:veredicto etul:ParcialmenteCorrecta ;
+    etul:evaluadaPor etul:EXP-01 ;
+    etul:hechosCorrectos "3"^^xsd:integer ;
+    etul:hechosIncorrectos "1"^^xsd:integer ;
+    etul:fechaEvaluacion "2026-09-11"^^xsd:date ;
+    etul:comentarioEvaluacion "El coaster 301 vence el 2 de octubre, fuera de los 30 días que pidió la pregunta" .
+
+etul:EVA-004 a owl:NamedIndividual , etul:EvaluacionRespuesta ;
+    etul:evaluaRespuesta etul:RES-004 ;
+    etul:veredicto etul:SinRespuesta ;
+    etul:evaluadaPor etul:EXP-02 ;
+    etul:hechosCorrectos "0"^^xsd:integer ;
+    etul:hechosIncorrectos "0"^^xsd:integer ;
+    etul:fechaEvaluacion "2026-09-11"^^xsd:date ;
+    etul:comentarioEvaluacion "Correcto que lo declare: el dato no está en el grafo y no lo inventó" .
+
+etul:EVA-005 a owl:NamedIndividual , etul:EvaluacionRespuesta ;
+    etul:evaluaRespuesta etul:RES-005 ;
+    etul:veredicto etul:Incorrecta ;
+    etul:evaluadaPor etul:EXP-01 ;
+    etul:hechosCorrectos "0"^^xsd:integer ;
+    etul:hechosIncorrectos "6"^^xsd:integer ;
+    etul:fechaEvaluacion "2026-09-11"^^xsd:date ;
+    etul:comentarioEvaluacion "La consulta del primer intento no calculaba el vencimiento; devolvió toda la flota" .

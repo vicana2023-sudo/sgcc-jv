@@ -1,0 +1,11 @@
+{
+  "name": "etul4-agente",
+  "description": "Función servidor opcional: selección de consulta con modelo de lenguaje",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase-functions": "^5.0.0"
+  },
+  "private": true
+}

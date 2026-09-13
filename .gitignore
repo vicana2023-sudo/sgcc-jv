@@ -1,0 +1,14 @@
+node_modules/
+functions/node_modules/
+.firebase/
+*.log
+.env
+
+# carpetas del IDE
+.idea/
+
+# exportaciones generadas por la propia aplicación
+validacion-historias.*
+bandeja-revision.json
+sesion-*.json
+sesion-*-transcripcion.txt

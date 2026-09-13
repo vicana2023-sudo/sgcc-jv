@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETUL 4 · Grafo de conocimiento para mantenimiento de flota</title>
+<meta name="description" content="Prototipo de tesis doctoral: grafo de conocimiento y modelos de lenguaje aplicados a la programación de mantenimiento en una empresa de transporte urbano de Lima.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%2310201B'/><text y='23' x='4' font-size='18' fill='%23E9B531' font-family='monospace'>4</text></svg>">
+<link rel="stylesheet" href="app/estilo.css">
+</head>
+<body>
+
+<header class="placard">
+  <span class="code">ETUL 4</span>
+  <span class="meta">Grafo de conocimiento · mantenimiento y programación de flota</span>
+  <span class="meta rol-sel">
+    <label for="rol" class="sr">Rol con el que se entra</label>
+    <select id="rol" title="El rol decide qué vistas y qué consultas se ven. No es autenticación."></select>
+  </span>
+  <span class="meta estado" id="estado">cargando el grafo…</span>
+</header>
+
+<p class="rol-nota" id="rol-nota"></p>
+
+<nav class="tabs" id="tabs" role="tablist">
+  <button role="tab" data-v="preguntar" class="on">Preguntar</button>
+  <button role="tab" data-v="explorar">Explorar el grafo</button>
+  <button role="tab" data-v="consultas">Consultas</button>
+  <button role="tab" data-v="entrevista">Entrevista por voz</button>
+  <button role="tab" data-v="reportar">Reportar falla</button>
+  <button role="tab" data-v="revision">Revisión</button>
+  <button role="tab" data-v="validacion">Validación</button>
+  <button role="tab" data-v="acerca">Acerca de</button>
+</nav>
+
+<main class="wrap">
+
+  <!-- ═══════════════ PREGUNTAR ═══════════════ -->
+  <section id="v-preguntar">
+    <h1 class="serif h1">Pregunte al grafo</h1>
+    <p class="note ancho">
+      Escriba o dicte una pregunta sobre la flota. El sistema busca una consulta validada,
+      la ejecuta contra el grafo y responde solo con lo que encontró. Si no tiene el dato, lo dice.
+    </p>
+
+    <div class="card">
+      <label class="lbl" for="q">Su pregunta</label>
+      <div class="row">
+        <input id="q" placeholder="¿Cuántas unidades puedo meter al taller sin dejar la 1100 sin cobertura?" style="flex:1;min-width:240px">
+        <button id="b-mic" class="g" title="Dictar">Dictar</button>
+        <button id="b-preguntar">Preguntar</button>
+      </div>
+      <div class="chips" id="ejemplos"></div>
+      <label class="row modo" style="margin-top:14px">
+        <input type="checkbox" id="usar-modelo"> <span class="note">Usar modelo de lenguaje para elegir la consulta (requiere la función servidor desplegada)</span>
+      </label>
+    </div>
+
+    <div id="respuesta"></div>
+  </section>
+
+  <!-- ═══════════════ EXPLORAR ═══════════════ -->
+  <section id="v-explorar" class="hide">
+    <h1 class="serif h1">Explorar el grafo</h1>
+    <p class="note ancho">
+      Todo lo que ve aquí sale del archivo <code>etul4_completa.ttl</code>, analizado en su navegador.
+      Las clases en ámbar son inferidas: ningún dato las declara, las deduce el razonador.
+    </p>
+    <div class="stats" id="stats"></div>
+    <div class="card">
+      <div class="row">
+        <select id="clase-sel" style="max-width:320px"></select>
+        <input id="filtro" placeholder="Filtrar por texto" style="flex:1;min-width:180px">
+      </div>
+      <div id="lista-indiv" class="lista"></div>
+    </div>
+    <div id="detalle"></div>
+  </section>
+
+  <!-- ═══════════════ CONSULTAS ═══════════════ -->
+  <section id="v-consultas" class="hide">
+    <h1 class="serif h1">Consultas de competencia</h1>
+    <p class="note ancho">
+      Las plantillas que el sistema puede ejecutar. Cada una trae su equivalente en SPARQL, para
+      correrla en GraphDB o Fuseki sobre el mismo grafo.
+    </p>
+    <div id="lista-consultas"></div>
+  </section>
+
+  <!-- ═══════════════ ENTREVISTA ═══════════════ -->
+  <section id="v-entrevista" class="hide">
+    <h1 class="serif h1">Entrevista por voz</h1>
+    <p class="note ancho">
+      Captura del conocimiento del experto. Las preguntas salen del banco de la tesis, filtradas por rol.
+      Lo que diga se transcribe en vivo; lo que usted corrija queda marcado, para poder separar después
+      el error del reconocedor del error del modelo.
+    </p>
+    <div id="entrevista-app"></div>
+  </section>
+
+  <!-- ═══════════════ REPORTAR ═══════════════ -->
+  <section id="v-reportar" class="hide">
+    <h1 class="serif h1">Reportar una falla</h1>
+    <p class="note ancho">
+      Así reportaría un conductor al llegar al patio. Lo que elige en una lista es un dato directo;
+      lo que escribe o dicta en texto libre pasa por extracción y queda pendiente de revisión.
+    </p>
+    <div id="reportar-app"></div>
+  </section>
+
+  <!-- ═══════════════ REVISIÓN ═══════════════ -->
+  <section id="v-revision" class="hide">
+    <h1 class="serif h1">Bandeja de revisión</h1>
+    <p class="note ancho">
+      Ningún hecho propuesto por un modelo entra al grafo sin pasar por aquí. Es el punto donde se
+      mide la precisión de la extracción, y el cuello de botella real del sistema.
+    </p>
+    <div id="revision-app"></div>
+  </section>
+
+  <!-- ═══════════════ VALIDACIÓN ═══════════════ -->
+  <section id="v-validacion" class="hide">
+    <h1 class="serif h1">Validación del prototipo</h1>
+    <p class="note ancho">
+      Las historias de usuario que este prototipo dice cumplir, una por una, con el criterio
+      con el que se comprueba cada una. Declare el veredicto y deje escrito por qué; lo que
+      no se exporta no cuenta como evidencia.
+    </p>
+    <div id="validacion-app"></div>
+  </section>
+
+  <!-- ═══════════════ ACERCA ═══════════════ -->
+  <section id="v-acerca" class="hide">
+    <h1 class="serif h1">Acerca de este prototipo</h1>
+    <div class="card ancho">
+      <h2 class="serif h2">Qué es</h2>
+      <p>Prototipo de una tesis doctoral sobre ingeniería ontológica y modelos de lenguaje aplicados
+      a la programación del mantenimiento en una empresa de transporte urbano de Lima.</p>
+
+      <h2 class="serif h2">Cómo funciona sin servidor</h2>
+      <p>El grafo completo, ontología y datos, se descarga y se analiza en su navegador. Hay un
+      analizador Turtle y un razonador ligero que clasifica las clases definidas con
+      <code>owl:equivalentClass</code> y materializa las propiedades inversas. Las consultas se
+      ejecutan sobre ese índice en memoria.</p>
+      <p class="note">No es un motor SPARQL completo ni un razonador OWL DL. Para eso está el mismo
+      archivo cargado en GraphDB con HermiT. Aquí el objetivo es que la demo sea pública, gratuita y
+      sin exponer ninguna clave.</p>
+
+      <h2 class="serif h2">Qué tipo de GraphRAG es</h2>
+      <p>Recuperación por consulta estructurada, no por embeddings de subgrafos. El sistema elige una
+      plantilla validada y rellena sus parámetros; el grafo devuelve datos exactos; la respuesta se
+      redacta solo con esas filas. Por eso puede responder preguntas de agregación y de conteo, que
+      es donde la recuperación por similitud falla.</p>
+      <p>La contrapartida es que no responde fuera del conjunto de plantillas. Cuando eso pasa, se
+      abstiene en vez de improvisar, y esa abstención se mide.</p>
+
+      <h2 class="serif h2">Advertencia sobre los datos</h2>
+      <p><strong>Los datos son ficticios.</strong> Las cuatro rutas son las que la empresa publica en
+      su web. Todo lo demás (placas, padrones, marcas, kilometrajes, personas, fallas, reglas) está
+      inventado para ilustrar el modelo. Nada aquí describe la operación real de ETUL 4 S.A.</p>
+
+      <h2 class="serif h2">Los roles no son autenticación</h2>
+      <p>El desplegable de la cabecera cambia qué pestañas y qué consultas se ven. Eso es todo lo
+      que hace: <strong>no hay contraseña, ni sesión, ni servidor que verifique nada</strong>.
+      Cualquiera puede cambiar de rol, y quien abra la consola del navegador ve el grafo entero
+      sin importar con qué rol entró.</p>
+      <p class="note">Lo que el prototipo sí demuestra es la otra mitad del problema: qué consultas
+      tiene sentido darle a cada puesto, que es una decisión de modelado. En producción ese mismo
+      mapa vive en el servidor, detrás de Firebase Auth, y el cliente no llega a recibir las
+      plantillas que no le tocan.</p>
+
+      <h2 class="serif h2">Privacidad</h2>
+      <p>No hay servidor ni base de datos en esta demo. Lo que usted escriba, dicte o reporte se
+      queda en su navegador y se pierde al borrar los datos del sitio. Nada se envía a ningún lado,
+      salvo que active el modelo de lenguaje y exista una función servidor desplegada.</p>
+
+      <h2 class="serif h2">Archivos</h2>
+      <p class="note">El grafo que está usando esta página: <a href="datos/etul4_completa.ttl" download>etul4_completa.ttl</a></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <span class="note">Prototipo de investigación · datos ficticios · no representa la operación real de la empresa</span>
+</footer>
+
+<script type="module" src="app/main.js"></script>
+</body>
+</html>
