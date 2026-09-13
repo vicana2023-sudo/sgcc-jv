@@ -22,16 +22,22 @@
 
 <p class="rol-nota" id="rol-nota"></p>
 
+<!-- Todas las pestañas nacen ocultas y las revela auth.js según el rol. Es a
+     propósito: si el módulo no llegara a cargar, lo que se ve es nada, no todo.
+     El filtro tiene que fallar cerrado. -->
 <nav class="tabs" id="tabs" role="tablist">
-  <button role="tab" data-v="preguntar" class="on">Preguntar</button>
-  <button role="tab" data-v="explorar">Explorar el grafo</button>
-  <button role="tab" data-v="consultas">Consultas</button>
-  <button role="tab" data-v="entrevista">Entrevista por voz</button>
-  <button role="tab" data-v="reportar">Reportar falla</button>
-  <button role="tab" data-v="revision">Revisión</button>
-  <button role="tab" data-v="validacion">Validación</button>
-  <button role="tab" data-v="acerca">Acerca de</button>
+  <button role="tab" data-v="preguntar" class="on hide">Preguntar</button>
+  <button role="tab" data-v="explorar" class="hide">Explorar el grafo</button>
+  <button role="tab" data-v="consultas" class="hide">Consultas</button>
+  <button role="tab" data-v="entrevista" class="hide">Entrevista por voz</button>
+  <button role="tab" data-v="reportar" class="hide">Reportar falla</button>
+  <button role="tab" data-v="revision" class="hide">Revisión</button>
+  <button role="tab" data-v="validacion" class="hide">Validación</button>
+  <button role="tab" data-v="acerca" class="hide">Acerca de</button>
 </nav>
+<noscript>
+  <p class="err" style="margin:16px 22px">Esta página necesita JavaScript: el grafo se analiza en su navegador.</p>
+</noscript>
 
 <main class="wrap">
 

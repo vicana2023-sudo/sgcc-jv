@@ -93,9 +93,16 @@ export function crearValidacion(contenedor, datos, opciones = {}) {
     const caja = el("div", "card");
     const g = el("div", "grid");
 
+    /* Solo los módulos que tienen alguna historia para este rol. Ofrecer los
+       doce cuando el rol solo alcanza cinco lleva a elegir uno y encontrarse la
+       lista vacía, sin saber si es cosa del filtro o del rol. */
+    const modulosDelRol = (datos.modulos || []).filter((m) => ambito.some((h) => h.modulo === m));
     const selM = el("select");
-    selM.add(new Option("(todos los módulos)", ""));
-    (datos.modulos || []).forEach((m) => selM.add(new Option(m, m)));
+    selM.add(new Option(`(sus ${modulosDelRol.length} módulos)`, ""));
+    modulosDelRol.forEach((m) => selM.add(new Option(m, m)));
+    /* Si el rol cambió y el módulo filtrado ya no le corresponde, el filtro se
+       suelta en vez de dejar la vista vacía. */
+    if (filtro.modulo && !modulosDelRol.includes(filtro.modulo)) filtro.modulo = "";
     selM.value = filtro.modulo;
     selM.onchange = () => { filtro.modulo = selM.value; pintar(); };
 

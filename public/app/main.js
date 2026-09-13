@@ -11,7 +11,7 @@ import { cargarGrafo, E, corto, NS } from "./grafo.js";
 import { CONSULTAS, ejecutar, opciones } from "./consultas.js";
 import { construirIndices, responder } from "./rag.js";
 import { crearVoz } from "./voz.js";
-import { ROLES, rolActual, fijarRol, alCambiarRol, vistasPermitidas,
+import { ROLES, rolActual, fijarRol, alCambiarRol, vistasPermitidas, puedeVer,
          consultasPermitidas } from "./auth.js";
 import { crearValidacion } from "./validacion.js";
 
@@ -34,7 +34,20 @@ try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); } catch 
 const leer = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch (e) { return def; } };
 const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
-/* ================================= arranque ============================== */
+/* ================================= arranque ==============================
+   El rol se aplica ANTES de pedir nada por la red. Es lo primero que corre.
+
+   Antes se aplicaba al final del arranque, después de analizar el grafo, y eso
+   dejaba dos agujeros: durante la carga se veían todos los módulos, y si el
+   .ttl no llegaba no se ocultaban nunca. Un conductor con la conexión caída
+   entraba a la bandeja de revisión. El filtro tiene que fallar cerrado.
+
+   Las declaraciones de función se elevan, así que se pueden llamar aquí arriba;
+   el módulo se ejecuta con el DOM ya construido porque <script type="module">
+   es diferido.                                                              */
+pintarSelectorRol();
+aplicarPanelRol();
+
 (async function arrancar() {
   try {
     const [g, banco, hist] = await Promise.all([
@@ -46,7 +59,6 @@ const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); }
     IX = construirIndices(G);
     const s = G.estadisticas();
     $("#estado").textContent = `${s.triples.toLocaleString("es")} triples · ${s.individuos} individuos · ${s.inferencias} inferencias`;
-    pintarSelectorRol();
     pintarEstadisticas(s);
     pintarSelectorClases();
     pintarReportar();
@@ -69,6 +81,10 @@ const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); }
 $("#tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-v]");
   if (!b) return;
+  /* La comprobación va aquí y no solo en la pestaña: ocultar el botón evita el
+     clic, pero irA() se llama también desde el panel de validación y desde el
+     propio cambio de rol. Un único punto que decide qué módulo se abre. */
+  if (!puedeVer(b.dataset.v)) return;
   $$("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
   $$("main > section").forEach((s) => s.classList.toggle("hide", s.id !== "v-" + b.dataset.v));
   window.scrollTo(0, 0);
@@ -89,7 +105,9 @@ function pintarSelectorRol() {
   alCambiarRol(aplicarRol);
 }
 
-function aplicarRol() {
+/* Qué módulos se ven. No depende del grafo, y por eso se puede correr de
+   entrada: el catálogo de consultas y el mapa de vistas son estáticos. */
+function aplicarPanelRol() {
   const rol = rolActual();
   const sel = $("#rol");
   if (sel && sel.value !== rol.id) sel.value = rol.id;
@@ -100,13 +118,21 @@ function aplicarRol() {
   /* Si el rol nuevo no alcanza la pestaña abierta, hay que moverse: dejarla
      abierta sería mostrar justamente lo que se acaba de retirar. */
   const abierta = $("#tabs button.on");
-  if (!abierta || !permitidas.includes(abierta.dataset.v)) irA(permitidas[0]);
+  if (!abierta || abierta.classList.contains("hide") || !permitidas.includes(abierta.dataset.v)) {
+    irA(permitidas[0]);
+  }
 
   const nCons = consultasPermitidas(CONSULTAS).length;
   $("#rol-nota").textContent =
-    `${rol.descripcion}  ·  ${permitidas.length} vistas y ${nCons} de ${CONSULTAS.length} consultas. ` +
+    `${rol.descripcion}  ·  ${permitidas.length} módulos y ${nCons} de ${CONSULTAS.length} consultas. ` +
     `El rol decide qué se ve; no es autenticación.`;
+}
 
+/* Lo anterior más lo que sí necesita el grafo. Se llama al cambiar de rol y al
+   terminar el arranque; mientras no haya grafo, repinta solo el panel. */
+function aplicarRol() {
+  aplicarPanelRol();
+  if (!G) return;
   pintarEjemplos();
   pintarConsultas();
   if (!ENT) pintarEntrevista();          // con sesión en curso no se toca nada
