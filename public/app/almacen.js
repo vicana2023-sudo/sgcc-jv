@@ -66,10 +66,14 @@ export async function abrirAlmacen(u) {
     const app = getApps()[0] || initializeApp(CONFIG_FIREBASE);
     fs = mod;
     db = mod.getFirestore(app);
-    /* Una lectura de prueba, acotada a un documento: es la única forma de saber
-       si la API está habilitada y si las reglas dejan pasar a este rol. Que el
-       SDK cargue no significa que haya base de datos al otro lado. */
-    await conLimite(mod.getDocs(mod.query(mod.collection(db, "propuestas"), mod.limit(1))));
+    /* Sonda: la única forma de saber si la API está habilitada y si hay base al
+       otro lado. Se lee el documento propio de validación y no la bandeja, y la
+       diferencia importa: las reglas de Firestore NO filtran, validan. Listar
+       /propuestas solo lo permiten los roles revisores, así que sondear ahí
+       habría dicho «no hay Firestore» a un conductor, cuando lo que no tiene es
+       permiso de listar. Su documento de validación lo puede leer cualquiera
+       que haya entrado, exista o no. */
+    await conLimite(mod.getDoc(mod.doc(db, "validacion", usuario.uid)));
     modo = "firestore";
     motivo = "compartido entre usuarios";
   } catch (e) {
@@ -95,11 +99,21 @@ const escribirLocal = (col, m) => {
 
 /* -------------------------------- operaciones ----------------------------- */
 
-/** Devuelve todos los documentos visibles de una colección, como [{id, ...}]. */
-export async function listar(col) {
+/**
+ * Documentos visibles de una colección, como [{id, ...}].
+ * @param {{mio?:boolean}} opciones  `mio` restringe la consulta a lo creado por
+ *   el usuario. No es un filtro de conveniencia: las reglas no filtran, validan.
+ *   Una lista sin restringir sobre una colección cuyo permiso depende de
+ *   `creadoPor` se deniega entera, aunque todos los documentos fueran suyos.
+ *   Con la restricción explícita, el servidor puede comprobarla y la permite.
+ */
+export async function listar(col, opciones = {}) {
   if (modo === "firestore") {
     try {
-      const r = await conLimite(fs.getDocs(fs.collection(db, col)));
+      const ref = opciones.mio && usuario
+        ? fs.query(fs.collection(db, col), fs.where("creadoPor", "==", usuario.uid))
+        : fs.collection(db, col);
+      const r = await conLimite(fs.getDocs(ref));
       return r.docs.map((d) => ({ id: d.id, ...d.data() }));
     } catch (e) { /* cae al respaldo, abajo */ }
   }

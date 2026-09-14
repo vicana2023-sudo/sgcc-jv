@@ -98,7 +98,7 @@ async function arrancar() {
        del servidor ya lo imponen, y aquí se filtra para que el investigador
        —que sí las ve todas— no retome por error la de otro. */
     try {
-      const sesiones = await listar(COL_SES);
+      const sesiones = await listar(COL_SES, { mio: true });
       SESION_PENDIENTE = sesiones
         .filter((x) => !x.cerrada && (!USUARIO || x.creadoPor === USUARIO.uid))
         .sort((a, b) => (b.creadoEn || "").localeCompare(a.creadoEn || ""))[0] || null;

@@ -123,6 +123,18 @@ firebase deploy --only firestore:rules
 
 Lo importante para la tesis está en `propuestas`: una actualización solo puede tocar `estado`, `revisadoPor` y `revisadoEn`. Ni el predicado, ni el objeto, ni el fragmento de evidencia. **«El agente propone, nunca escribe» deja de ser una convención del código y pasa a ser una restricción del almacén**, que nadie puede saltarse desde el navegador. Y una propuesta sin `fragmento` no se puede ni crear: sin evidencia no hay hecho.
 
+### Comprobar que las reglas hacen lo que dicen
+
+```bash
+node admin/probar-reglas.mjs
+```
+
+Pide un token de sesión real para cada rol y llama a la API de Firestore con él, igual que haría el navegador. **No usa el SDK de administración para leer y escribir**: ese se salta las reglas por diseño y no probaría nada.
+
+Catorce comprobaciones, de las que la que sostiene el argumento de la tesis es «el revisor NO puede alterar el hecho que aceptó». Enseñar el archivo de reglas demuestra la intención; esto demuestra el efecto, que es lo que un jurado pide.
+
+Ojo al correrlo justo después de desplegar reglas: tardan cerca de un minuto en propagarse y mientras tanto sale todo denegado.
+
 > Hubo brevemente un proyecto de calidad aparte (`sgcc-jv-qa`). Se retiró: se trabaja sobre `sgcc-jv`. El proyecto vacío sigue existiendo en la consola hasta que se elimine a mano.
 
 ---
