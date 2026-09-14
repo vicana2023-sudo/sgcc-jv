@@ -1,0 +1,9 @@
+{
+  "name": "etul4-admin",
+  "description": "Alta de cuentas y asignacion de roles del prototipo. No se despliega.",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

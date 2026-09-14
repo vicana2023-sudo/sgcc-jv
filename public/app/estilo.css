@@ -110,6 +110,49 @@ a:hover{color:var(--ink);}
    oscuro; por eso es ámbar y lleva separación. */
 :focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:var(--r1);}
 
+/* ============================ 2b. Puerta de acceso =======================
+   Mientras el <body> lleve «sin-sesion» no hay aplicación detrás: no se oculta
+   con opacidad ni se tapa, se quita del documento. Y la clase nace puesta en el
+   HTML, así que un fallo de JavaScript deja la puerta, no el sistema.       */
+body.sin-sesion .placard,
+body.sin-sesion .rol-nota,
+body.sin-sesion .tabs,
+body.sin-sesion main,
+body.sin-sesion .pie{display:none !important;}
+body:not(.sin-sesion) .puerta{display:none !important;}
+
+.puerta{
+  position:fixed;inset:0;z-index:60;
+  display:flex;align-items:center;justify-content:center;
+  padding:var(--e5);overflow-y:auto;
+  background:
+    radial-gradient(1100px 520px at 50% -10%, rgba(233,181,49,.10), transparent 70%),
+    var(--dark);
+}
+.puerta-caja{
+  width:100%;max-width:400px;
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r3);padding:var(--e6);
+  box-shadow:var(--sombra-3);
+}
+.puerta-caja .code{
+  display:block;border-right:none;padding-right:0;
+  margin-bottom:var(--e4);font-size:18px;
+}
+.puerta-h1{font-size:25px;margin:0 0 var(--e2);line-height:1.2;}
+.puerta-caja .lbl{margin-top:var(--e4);}
+.puerta-caja button[type=submit]{width:100%;margin-top:var(--e5);padding:var(--e3);}
+.puerta-caja .err{margin-top:var(--e4);}
+.puerta-pie{margin:var(--e5) 0 0;padding-top:var(--e4);border-top:1px solid var(--line);}
+
+/* Identidad de quien entró, donde antes estaba el desplegable de rol. */
+.usuario{display:flex;align-items:center;gap:var(--e2);}
+.usuario #u-correo{font-size:13px;color:var(--sobre-dark);}
+.usuario .tag{background:var(--dark-3);border-color:var(--dark-3);color:var(--amber);}
+.usuario button{background:transparent;color:var(--sobre-dark-2);border-color:var(--dark-3);
+  box-shadow:none;}
+.usuario button:hover:not(:disabled){background:var(--dark-3);color:var(--sobre-dark);}
+
 /* ============================== 3. Cabecera ============================== */
 .placard{
   background:var(--dark);color:var(--sobre-dark);
@@ -368,6 +411,10 @@ pre{
 }
 @media (max-width:640px){
   body{font-size:15px;}
+  .puerta{padding:var(--e4);align-items:flex-start;}
+  .puerta-caja{padding:var(--e5);}
+  .usuario{width:100%;}
+  .usuario #u-correo{flex:1;overflow:hidden;text-overflow:ellipsis;}
   .placard{padding:var(--e3) var(--e4);gap:var(--e3);}
   .code{border-right:none;padding-right:0;}
   .estado{margin-left:0;}

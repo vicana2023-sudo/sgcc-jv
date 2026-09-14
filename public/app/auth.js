@@ -2,23 +2,28 @@
    auth.js — roles, vistas y consultas permitidas
    ETUL 4 S.A.
 
-   ADVERTENCIA, y conviene decirla en la defensa antes de que la pregunten:
-   esto NO ES AUTENTICACIÓN. No hay contraseña, no hay sesión, no hay servidor
-   que verifique nada. El rol se elige en un desplegable y se guarda en este
-   navegador. Cualquiera puede cambiarlo, y quien abra la consola ve el grafo
-   entero sin importar el rol.
+   Este módulo es el MODELO DE ROLES: qué vistas y qué consultas corresponden a
+   cada puesto. No decide quién es usted; eso lo hace sesion.js contra Firebase
+   Auth. El rol llega desde el token como custom claim firmado por Google, y
+   aquí solo se traduce a permisos.
 
-   Lo que sí demuestra este módulo es la otra mitad del problema: qué consultas
-   y qué vistas tiene sentido darle a cada perfil, que es una decisión de
-   modelado, no de seguridad. En producción el mismo mapa CONSULTAS_POR_ROL
-   vive en el servidor, detrás de Firebase Auth, y el cliente no recibe siquiera
-   las plantillas que no le tocan. Aquí solo se ocultan.
+   La separación es deliberada y conviene mantenerla: este archivo no importa
+   nada de Firebase, así que se puede cargar desde Node. Las comprobaciones del
+   despliegue continuo lo importan para cruzar roles, vistas y consultas antes
+   de publicar; si alguien le añadiera un import del SDK, esa comprobación
+   dejaría de correr.
+
+   LO QUE SIGUE SIN HACER, y hay que decirlo en la defensa antes de que lo
+   pregunten: ocultar una pestaña no protege un dato. Firebase Hosting sirve
+   los archivos de forma pública, así que el grafo se puede descargar sin haber
+   entrado. El acceso por rol decide qué ve la interfaz; con datos reales, el
+   filtrado tendría que ocurrir en el servidor, sobre el mismo mapa
+   CONSULTAS_POR_ROL, y el cliente no recibiría siquiera las plantillas que no
+   le tocan.
 
    Para añadir un rol: defínalo en ROLES, sus consultas en CONSULTAS_POR_ROL y
    su panel en PANEL_POR_ROL. Los tres mapas se comprueban al cargar el módulo.
 ============================================================================= */
-
-const CLAVE_ROL = "etul4_rol_v1";
 
 /* Las vistas son las secciones de index.html: cada una es <section id="v-ID">
    con su pestaña <button data-v="ID">. */
@@ -108,26 +113,26 @@ export const PANEL_POR_ROL = {
   "investigador":       ["preguntar", "explorar", "consultas", "entrevista", "reportar", "revision", "validacion"],
 };
 
-const POR_DEFECTO = "jefe-mantenimiento";
-
-/* ------------------------------- estado actual ---------------------------- */
-let actual = POR_DEFECTO;
+/* ------------------------------- estado actual ----------------------------
+   Nace vacío. Antes se leía de localStorage, y eso era coherente con un
+   desplegable: el navegador recordaba lo último elegido. Ya no: el rol es una
+   afirmación del token, no una preferencia del equipo. Si no hay sesión, no
+   hay rol, y sin rol no se ve nada.                                          */
+let actual = null;
 const oyentes = [];
 
-try {
-  const g = localStorage.getItem(CLAVE_ROL);
-  if (g && ROLES.some((r) => r.id === g)) actual = g;
-} catch (e) { /* navegador sin almacenamiento: se queda con el rol por defecto */ }
-
+/** Rol activo, o null si no hay sesión. */
 export function rolActual() {
-  return ROLES.find((r) => r.id === actual) || ROLES[0];
+  return ROLES.find((r) => r.id === actual) || null;
 }
 
+export function haySesion() { return actual !== null; }
+
+/** La llama main.js con lo que venga del claim. `null` al cerrar sesión. */
 export function fijarRol(id) {
-  if (!ROLES.some((r) => r.id === id)) return false;
-  if (id === actual) return false;
-  actual = id;
-  try { localStorage.setItem(CLAVE_ROL, id); } catch (e) {}
+  const nuevo = ROLES.some((r) => r.id === id) ? id : null;
+  if (nuevo === actual) return false;
+  actual = nuevo;
   oyentes.forEach((f) => { try { f(rolActual()); } catch (e) { console.error(e); } });
   return true;
 }
@@ -138,8 +143,11 @@ export function alCambiarRol(f) {
   return () => { const i = oyentes.indexOf(f); if (i >= 0) oyentes.splice(i, 1); };
 }
 
-/* --------------------------------- permisos ------------------------------- */
+/* --------------------------------- permisos -------------------------------
+   Sin rol no se concede nada, ni siquiera «acerca»: la puerta de acceso ocupa
+   toda la pantalla y detrás no debe quedar nada visible.                     */
 export function vistasPermitidas(id = actual) {
+  if (!id) return [];
   return [...(PANEL_POR_ROL[id] || []), "acerca"];
 }
 
@@ -151,12 +159,14 @@ export function puedeVer(vista, id = actual) {
     se recibe como argumento para no crear una dependencia circular con
     consultas.js, que no tiene por qué saber que existen los roles. */
 export function consultasPermitidas(todas, id = actual) {
+  if (!id) return [];
   const p = CONSULTAS_POR_ROL[id];
   const ids = todas.map((c) => c.id);
   return p === "*" ? ids : ids.filter((x) => (p || []).includes(x));
 }
 
 export function puedeConsultar(idConsulta, id = actual) {
+  if (!id) return false;
   const p = CONSULTAS_POR_ROL[id];
   return p === "*" || (p || []).includes(idConsulta);
 }

@@ -42,7 +42,9 @@ const COLOR = {
  *        descargar función (nombre, contenido, tipo)
  */
 export function crearValidacion(contenedor, datos, opciones = {}) {
-  const rolDe = opciones.rol || (() => ROLES[0]);
+  /* Nunca debería llegar nulo —solo se pinta con sesión—, pero el panel no es
+     el sitio donde descubrir que sí. */
+  const rolDe = () => (opciones.rol ? opciones.rol() : null) || ROLES[0];
   const irA = opciones.irA || null;
   const bajar = opciones.descargar || descargarPorDefecto;
   const VEREDICTOS = datos.veredictos || ["Cumple", "Cumple parcialmente", "No cumple", "No aplica"];

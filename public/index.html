@@ -10,16 +10,49 @@
 <!-- La versión del enlace fuerza a saltarse la caché. firebase.json sirve el CSS
      con max-age=3600: sin esto, un cambio de estilo puede tardar una hora en
      verse, y parece que no se hubiera desplegado. Súbala al tocar la hoja. -->
-<link rel="stylesheet" href="app/estilo.css?v=2">
+<link rel="stylesheet" href="app/estilo.css?v=3">
 </head>
-<body>
+<!-- La clase se quita al confirmarse la sesión. Nace puesta a propósito: si el
+     JavaScript no llegara a cargar, lo que queda en pantalla es la puerta, no
+     la aplicación. -->
+<body class="sin-sesion">
+
+<!-- ═══════════════ PUERTA DE ACCESO ═══════════════ -->
+<div id="puerta" class="puerta">
+  <form class="puerta-caja" id="f-login" autocomplete="on">
+    <span class="code">ETUL 4</span>
+    <h1 class="serif puerta-h1">Acceso al sistema</h1>
+    <p class="note">
+      Entre con la cuenta que le asignó el área. El rol con el que verá el
+      sistema va asociado a su usuario: no se elige aquí.
+    </p>
+
+    <label class="lbl" for="correo">Correo</label>
+    <input id="correo" type="email" autocomplete="username" required
+           placeholder="nombre@etul4.pe" spellcheck="false">
+
+    <label class="lbl" for="clave">Contraseña</label>
+    <input id="clave" type="password" autocomplete="current-password" required>
+
+    <div class="err hide" id="login-err"></div>
+
+    <button id="b-entrar" type="submit">Entrar</button>
+
+    <p class="note puerta-pie">
+      Las cuentas las crea el investigador; no hay registro abierto. Si no puede
+      entrar o su usuario no tiene rol asignado, escriba al responsable del
+      prototipo.
+    </p>
+  </form>
+</div>
 
 <header class="placard">
   <span class="code">ETUL 4</span>
   <span class="meta">Grafo de conocimiento · mantenimiento y programación de flota</span>
-  <span class="meta rol-sel">
-    <label for="rol" class="sr">Rol con el que se entra</label>
-    <select id="rol" title="El rol decide qué vistas y qué consultas se ven. No es autenticación."></select>
+  <span class="meta usuario" id="usuario">
+    <span id="u-correo"></span>
+    <span class="tag" id="u-rol"></span>
+    <button class="g sm" id="b-salir" type="button">Salir</button>
   </span>
   <span class="meta estado" id="estado">cargando el grafo…</span>
 </header>
@@ -169,15 +202,19 @@
       su web. Todo lo demás (placas, padrones, marcas, kilometrajes, personas, fallas, reglas) está
       inventado para ilustrar el modelo. Nada aquí describe la operación real de ETUL 4 S.A.</p>
 
-      <h2 class="serif h2">Los roles no son autenticación</h2>
-      <p>El desplegable de la cabecera cambia qué pestañas y qué consultas se ven. Eso es todo lo
-      que hace: <strong>no hay contraseña, ni sesión, ni servidor que verifique nada</strong>.
-      Cualquiera puede cambiar de rol, y quien abra la consola del navegador ve el grafo entero
-      sin importar con qué rol entró.</p>
-      <p class="note">Lo que el prototipo sí demuestra es la otra mitad del problema: qué consultas
-      tiene sentido darle a cada puesto, que es una decisión de modelado. En producción ese mismo
-      mapa vive en el servidor, detrás de Firebase Auth, y el cliente no llega a recibir las
-      plantillas que no le tocan.</p>
+      <h2 class="serif h2">Cómo funciona el acceso por rol</h2>
+      <p>Se entra con correo y contraseña contra Firebase Authentication. El rol no se elige:
+      viaja dentro del token de sesión como <em>custom claim</em> firmado por Google. El navegador
+      puede leerlo; no puede fabricarlo ni cambiarlo. Las cuentas y sus roles los crea el
+      investigador con el SDK de administración, y no hay registro abierto.</p>
+      <p><strong>Lo que esto no protege.</strong> Firebase Hosting sirve archivos de forma
+      pública: quien conozca la ruta puede descargar el grafo sin haber entrado nunca. El acceso
+      protege la interfaz, no los datos. Mientras el grafo sea ficticio, da igual; el día que
+      lleve datos reales de la empresa tendría que salir de Hosting y pasar a un almacén con
+      reglas del lado del servidor, con las consultas ejecutándose allí.</p>
+      <p class="note">El filtrado por rol sí alcanza a la pregunta en lenguaje natural, no solo a
+      las pestañas: el recuperador solo considera las plantillas del rol, y si la mejor
+      coincidencia no le corresponde, el sistema se abstiene y lo dice.</p>
 
       <h2 class="serif h2">Privacidad</h2>
       <p>No hay servidor ni base de datos en esta demo. Lo que usted escriba, dicte o reporte se

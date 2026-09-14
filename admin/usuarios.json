@@ -1,0 +1,11 @@
+{
+  "_nota": "Las cuentas del prototipo y el rol de cada una. Aquí NO van contraseñas: las genera el script y las escribe una sola vez en admin/credenciales-generadas.txt, que está fuera del repositorio. El campo rol tiene que coincidir con un id de ROLES en public/app/auth.js.",
+  "usuarios": [
+    { "correo": "mantenimiento@etul4.pe", "nombre": "Jefe de mantenimiento", "rol": "jefe-mantenimiento" },
+    { "correo": "operaciones@etul4.pe",   "nombre": "Jefe de operaciones",   "rol": "jefe-operaciones" },
+    { "correo": "programacion@etul4.pe",  "nombre": "Programador de flota",  "rol": "programador" },
+    { "correo": "taller@etul4.pe",        "nombre": "Técnico senior",        "rol": "tecnico" },
+    { "correo": "conductor@etul4.pe",     "nombre": "Conductor",             "rol": "conductor" },
+    { "correo": "investigador@etul4.pe",  "nombre": "Investigador",          "rol": "investigador" }
+  ]
+}

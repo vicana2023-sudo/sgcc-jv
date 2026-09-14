@@ -12,3 +12,10 @@ validacion-historias.*
 bandeja-revision.json
 sesion-*.json
 sesion-*-transcripcion.txt
+
+# claves y credenciales: nunca al repositorio
+admin/clave-servicio.json
+admin/credenciales-generadas.txt
+admin/node_modules/
+*serviceAccount*.json
+*-firebase-adminsdk-*.json

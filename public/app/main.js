@@ -12,8 +12,9 @@ import { CONSULTAS, ejecutar, opciones } from "./consultas.js";
 import { construirIndices, responder } from "./rag.js";
 import { crearVoz } from "./voz.js";
 import { ROLES, rolActual, fijarRol, alCambiarRol, vistasPermitidas, puedeVer,
-         consultasPermitidas } from "./auth.js";
+         consultasPermitidas, haySesion } from "./auth.js";
 import { crearValidacion } from "./validacion.js";
+import { arrancarSesion, entrar, salir, mensajeDeError } from "./sesion.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -35,20 +36,31 @@ const leer = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? d
 const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
 /* ================================= arranque ==============================
-   El rol se aplica ANTES de pedir nada por la red. Es lo primero que corre.
+   Orden de los acontecimientos, y el orden importa:
 
-   Antes se aplicaba al final del arranque, después de analizar el grafo, y eso
-   dejaba dos agujeros: durante la carga se veían todos los módulos, y si el
-   .ttl no llegaba no se ocultaban nunca. Un conductor con la conexión caída
-   entraba a la bandeja de revisión. El filtro tiene que fallar cerrado.
+     1. se aplica el panel con el rol actual, que al principio es ninguno;
+     2. se conecta con Firebase y se espera a saber quién entra;
+     3. solo con sesión confirmada se descarga y analiza el grafo.
 
-   Las declaraciones de función se elevan, así que se pueden llamar aquí arriba;
-   el módulo se ejecuta con el DOM ya construido porque <script type="module">
-   es diferido.                                                              */
-pintarSelectorRol();
+   El grafo no se pide antes de tiempo a propósito. No es que lo proteja
+   —Hosting lo sirve público de todas formas—, es que analizar 156 KB de Turtle
+   mientras alguien mira una pantalla de acceso no tiene sentido.
+
+   El filtro de módulos se aplica ANTES de pedir nada, y esa es la lección de
+   la corrección anterior: si se aplicara al final, un fallo de red dejaría
+   todas las pestañas visibles. Tiene que fallar cerrado.
+
+   Las declaraciones de función se elevan, así que se pueden llamar aquí
+   arriba; el módulo se ejecuta con el DOM ya construido porque
+   <script type="module"> es diferido.                                       */
 aplicarPanelRol();
+prepararPuerta();
 
-(async function arrancar() {
+let arrancado = false;
+
+async function arrancar() {
+  if (arrancado) return;
+  arrancado = true;
   try {
     const [g, banco, hist] = await Promise.all([
       cargarGrafo("datos/etul4_completa.ttl"),
@@ -75,7 +87,7 @@ aplicarPanelRol();
        Sírvalo con <code>python -m http.server 8000</code> y entre por <code>http://localhost:8000</code>.</div>`);
     throw e;
   }
-})();
+}
 
 /* ================================== pestañas ============================== */
 $("#tabs").addEventListener("click", (e) => {
@@ -91,32 +103,110 @@ $("#tabs").addEventListener("click", (e) => {
 });
 function irA(vista) { const b = $(`#tabs button[data-v="${vista}"]`); if (b) b.click(); }
 
-/* =================================== ROL =================================
-   Recordatorio, porque es la pregunta que va a caer en la defensa: esto no
-   protege nada. Oculta. La comprobación de verdad va en el servidor, y aquí no
-   hay servidor. Lo que sí se demuestra es el mapa de qué consulta corresponde a
-   qué puesto, y que ese mapa alcanza también a la pregunta libre: el rol se
-   aplica dentro del recuperador, no solo sobre las pestañas.               */
-function pintarSelectorRol() {
-  const sel = $("#rol");
-  ROLES.forEach((r) => sel.add(new Option(r.nombre, r.id)));
-  sel.value = rolActual().id;
-  sel.onchange = () => fijarRol(sel.value);
+/* ================================== SESIÓN ===============================
+   La puerta de acceso. El rol NO se elige aquí: llega en el token como custom
+   claim y este módulo solo lo traslada a auth.js. Si el token no trae rol, no
+   se entra: se avisa y se cierra la sesión, porque una cuenta sin rol no tiene
+   nada que ver y dejarla pasar a una pantalla vacía solo confunde.          */
+function prepararPuerta() {
   alCambiarRol(aplicarRol);
+
+  const form = $("#f-login");
+  const err = $("#login-err");
+  const boton = $("#b-entrar");
+
+  const fallo = (m) => { err.textContent = m; err.classList.remove("hide"); };
+  const limpiar = () => { err.textContent = ""; err.classList.add("hide"); };
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    limpiar();
+    boton.disabled = true;
+    boton.textContent = "Entrando…";
+    try {
+      await entrar($("#correo").value, $("#clave").value);
+      /* No se toca la pantalla aquí: lo hace el vigilante de sesión de abajo,
+         que es el que sabe si el usuario tiene rol. */
+    } catch (ex) {
+      fallo(mensajeDeError(ex));
+      $("#clave").value = "";
+      $("#clave").focus();
+    } finally {
+      boton.disabled = false;
+      boton.textContent = "Entrar";
+    }
+  });
+
+  $("#b-salir").onclick = async () => {
+    try { await salir(); } catch (e) { /* ya estaba fuera */ }
+  };
+
+  arrancarSesion(async (estado) => {
+    /* Aquí NO se limpia el aviso. Al rechazar una cuenta sin rol se llama a
+       salir(), y eso vuelve a entrar por esta función con estado nulo: si
+       limpiara, borraría el mensaje que acaba de explicar por qué no entró, y
+       el usuario se quedaría mirando la puerta sin saber qué pasó. El aviso lo
+       limpia el envío del formulario, que es el momento en que deja de
+       importar. */
+    if (!estado) { cerrarPantalla(); return; }
+
+    /* Autenticado, pero el rol tiene que existir en el catálogo. Un claim con un
+       rol desconocido —porque se renombró en auth.js y no se volvió a correr el
+       script— no puede abrir la aplicación con cero módulos: eso parecería un
+       fallo del sistema cuando es un desajuste de administración. Se trata igual
+       que la falta de rol. */
+    const conocido = estado.rol && ROLES.some((r) => r.id === estado.rol);
+    if (!conocido) {
+      cerrarPantalla();
+      fallo(estado.rol
+        ? `La cuenta ${estado.usuario.correo} tiene asignado el rol «${estado.rol}», que este ` +
+          `sistema no reconoce. El investigador debe corregirlo con el script de administración.`
+        : `La cuenta ${estado.usuario.correo} existe, pero no tiene ningún rol asignado. ` +
+          `El investigador debe asignárselo con el script de administración.`);
+      try { await salir(); } catch (e) {}
+      return;
+    }
+
+    limpiar();
+    fijarRol(estado.rol);
+    abrirPantalla(estado);
+    arrancar();                      // el grafo se descarga recién ahora
+  }).catch(() => {
+    fallo("No se pudo cargar Firebase. Revise su conexión y vuelva a intentarlo.");
+  });
 }
 
-/* Qué módulos se ven. No depende del grafo, y por eso se puede correr de
-   entrada: el catálogo de consultas y el mapa de vistas son estáticos. */
+function abrirPantalla(estado) {
+  document.body.classList.remove("sin-sesion");
+  $("#u-correo").textContent = estado.usuario.correo;
+  $("#u-rol").textContent = (ROLES.find((r) => r.id === estado.rol) || {}).nombre || estado.rol;
+  $("#clave").value = "";
+  aplicarRol();
+}
+
+function cerrarPantalla() {
+  document.body.classList.add("sin-sesion");
+  fijarRol(null);                     // dispara aplicarRol: oculta todo módulo
+  $("#u-correo").textContent = "";
+  $("#u-rol").textContent = "";
+  $("#clave").value = "";
+}
+
+/* =================================== ROL =================================
+   Qué módulos se ven. No depende del grafo, y por eso corre de entrada: el
+   mapa de vistas y el catálogo de consultas son estáticos.
+
+   Sin rol no se concede nada. Es el mismo principio de la corrección anterior:
+   fallar cerrado, tanto si falta la sesión como si falla la red.            */
 function aplicarPanelRol() {
   const rol = rolActual();
-  const sel = $("#rol");
-  if (sel && sel.value !== rol.id) sel.value = rol.id;
-
   const permitidas = vistasPermitidas();
   $$("#tabs button[data-v]").forEach((b) => b.classList.toggle("hide", !permitidas.includes(b.dataset.v)));
 
-  /* Si el rol nuevo no alcanza la pestaña abierta, hay que moverse: dejarla
-     abierta sería mostrar justamente lo que se acaba de retirar. */
+  if (!rol) { $("#rol-nota").textContent = ""; return; }
+
+  /* Si el rol no alcanza la pestaña abierta, hay que moverse: dejarla abierta
+     sería mostrar justamente lo que no le corresponde. */
   const abierta = $("#tabs button.on");
   if (!abierta || abierta.classList.contains("hide") || !permitidas.includes(abierta.dataset.v)) {
     irA(permitidas[0]);
@@ -125,14 +215,14 @@ function aplicarPanelRol() {
   const nCons = consultasPermitidas(CONSULTAS).length;
   $("#rol-nota").textContent =
     `${rol.descripcion}  ·  ${permitidas.length} módulos y ${nCons} de ${CONSULTAS.length} consultas. ` +
-    `El rol decide qué se ve; no es autenticación.`;
+    `El rol viene de su usuario; no se elige.`;
 }
 
 /* Lo anterior más lo que sí necesita el grafo. Se llama al cambiar de rol y al
    terminar el arranque; mientras no haya grafo, repinta solo el panel. */
 function aplicarRol() {
   aplicarPanelRol();
-  if (!G) return;
+  if (!G || !haySesion()) return;
   pintarEjemplos();
   pintarConsultas();
   if (!ENT) pintarEntrevista();          // con sesión en curso no se toca nada
@@ -415,7 +505,7 @@ function pintarConsultas() {
   if (visibles.length < CONSULTAS.length) {
     cont.appendChild(Object.assign(el("div", "aviso"), { textContent:
       `Se muestran ${visibles.length} de las ${CONSULTAS.length} plantillas del catálogo: ` +
-      `las demás no corresponden al rol «${rolActual().nombre}».` }));
+      `las demás no corresponden al rol «${(rolActual() || {}).nombre || "actual"}».` }));
   }
   visibles.forEach((c) => {
     const caja = el("div", "card");
@@ -507,7 +597,7 @@ function pintarEntrevista() {
   BANCO.roles.forEach((r) => selRol.add(new Option(r, r)));
   /* Se preselecciona el rol activo cuando tiene preguntas en el banco. Sigue
      siendo editable: el investigador entrevista a cualquiera de los cuatro. */
-  const suyo = rolActual().banco;
+  const suyo = (rolActual() || {}).banco;
   if (suyo && BANCO.roles.includes(suyo)) selRol.value = suyo;
   const inNom = el("input"); inNom.placeholder = "Nombre y apellidos";
   const inId = el("input"); inId.value = "EXP-01";

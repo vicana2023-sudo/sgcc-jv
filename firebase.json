@@ -8,8 +8,9 @@
     ],
     "headers": [
       {
+        "_comentario": "no-cache no es «no guardar»: el navegador guarda pero revalida siempre, y un archivo sin cambios se resuelve con un 304 de unos pocos bytes. Antes era max-age=3600, y eso provocaba un fallo real: tras un despliegue el navegador mezclaba un index.html nuevo con módulos viejos durante una hora, y la aplicación reventaba con errores que no se reproducían en local. Para un prototipo que cambia a diario, la correctitud vale más que el ahorro.",
         "source": "**/*.@(js|css)",
-        "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
         "source": "datos/**",

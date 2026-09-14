@@ -73,6 +73,18 @@ O deje que se publique solo: vea la sección siguiente.
 
 ---
 
+## Acceso: quién entra y con qué rol
+
+Se entra con **correo y contraseña** contra Firebase Authentication. El rol no se elige en la pantalla: viaja dentro del token como *custom claim* firmado por Google, y la aplicación solo lo traduce a qué módulos y qué consultas se ven.
+
+Las cuentas las crea el investigador con `admin/crear-usuarios.mjs`; no hay registro abierto. **Todo eso está documentado en [admin/LEEME.md](admin/LEEME.md)**, incluidos los dos pasos de consola que hay que dar una sola vez: habilitar el proveedor de correo y contraseña, y descargar la clave de la cuenta de servicio.
+
+Cuidado con una confusión frecuente: la `apiKey` que aparece en `public/app/firebase-config.js` **no es un secreto**. Es un identificador público del proyecto, viaja en cada petición del navegador y Google la publica así a propósito. La credencial de verdad es la clave de la cuenta de servicio, que no está en el repositorio.
+
+**Lo que el acceso no protege.** Hosting sirve archivos de forma pública: el grafo se puede descargar sin haber entrado. Protege la interfaz, no los datos. Con datos reales habría que sacar el grafo de Hosting y filtrar en el servidor.
+
+---
+
 ## Despliegue continuo desde GitHub
 
 El repositorio es <https://github.com/vicana2023-sudo/sgcc-jv>. Con esto configurado, **cada cambio que llegue a `main` y toque el sitio se verifica y se publica sin que usted haga nada**. El flujo está en `.github/workflows/desplegar-hosting.yml`.
@@ -93,27 +105,9 @@ Si algo falla, no se despliega y el commit queda marcado en rojo en GitHub.
 
 > **Cuidado con `node --check`.** Para estos archivos no sirve: con un módulo ES roto devuelve 0 y deja pasar el error. El flujo usa `node --input-type=module --check < archivo`, que sí falla. Si añade comprobaciones, respete esa forma.
 
-### Lo que falta hacer una sola vez
+### El secreto de despliegue
 
-El flujo necesita un secreto en el repositorio con las credenciales de despliegue. **No lo puede crear nadie más que usted**, porque implica generar una clave de su proyecto de Firebase.
-
-Desde esta carpeta:
-
-```bash
-firebase login
-```
-
-```bash
-firebase init hosting:github
-```
-
-Responda así:
-
-- **Repositorio**: `vicana2023-sudo/sgcc-jv`
-- **¿Configurar un script de compilación antes de desplegar?** → **No**. El sitio es estático.
-- **¿Desplegar al canal en producción cuando se fusione a una rama?** → **No**. De eso ya se encarga `desplegar-hosting.yml`; si responde que sí, tendrá dos flujos haciendo lo mismo.
-
-El comando crea una cuenta de servicio, guarda su JSON como secreto del repositorio y no vuelve a hacer falta. El secreto debe llamarse **`FIREBASE_SERVICE_ACCOUNT_SGCC_JV`**; compruébelo en Settings → Secrets and variables → Actions. Si quedó con otro nombre, corríjalo ahí o cambie el nombre en el flujo.
+Ya está puesto: `FIREBASE_SERVICE_ACCOUNT_SGCC_JV`, en Settings → Secrets and variables → Actions. Si alguna vez hubiera que rehacerlo, `firebase init hosting:github` lo regenera; responda **No** a las dos preguntas sobre crear flujos de trabajo, porque `desplegar-hosting.yml` ya hace ese trabajo y tendría dos publicando lo mismo.
 
 ### Comprobar que quedó andando
 
@@ -132,6 +126,8 @@ El flujo también se puede lanzar a mano desde la pestaña Actions, útil para r
 **Nunca despliega `functions`.** La función del modelo de lenguaje necesita el plan Blaze y el secreto `ANTHROPIC_API_KEY`; intentarlo desde el flujo fallaría en el plan gratuito. Cuando la vaya a usar, despliéguela a mano como dice la sección siguiente.
 
 **No valida la ontología.** Comprueba que el `.ttl` esté y tenga forma, no que sea consistente. Eso es trabajo de pySHACL o de HermiT en Protégé, y va aparte.
+
+**No crea ni modifica cuentas.** Las altas y los roles se hacen a mano con `admin/crear-usuarios.mjs`, que necesita la clave de la cuenta de servicio. Darle esa capacidad al flujo de despliegue sería poner la llave de los permisos en manos de cualquiera que pueda empujar a `main`.
 
 ---
 
