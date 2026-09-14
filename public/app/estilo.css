@@ -483,6 +483,46 @@ button.con-ico{display:inline-flex;align-items:center;gap:var(--e2);}
   box-shadow:var(--sombra-3);font-size:12.5px;z-index:5;}
 .red-globo b{font-family:var(--fuente-mono);font-size:12px;}
 
+/* ============================ 12e. La entrevista =========================
+   Conversación, no formulario. El experto puede seguir en pantalla lo que se
+   le pregunta y lo que quedó registrado de su respuesta; antes eso solo lo
+   entendía quien entrevistaba.                                              */
+.chat{
+  display:flex;flex-direction:column;gap:var(--e3);
+  max-height:46vh;overflow-y:auto;padding:var(--e2) var(--e1) var(--e3);
+  margin-top:var(--e3);
+}
+.msg{
+  max-width:88%;padding:var(--e3) var(--e4);border-radius:var(--r3);
+  border:1px solid var(--line);background:var(--panel);
+  box-shadow:var(--sombra-1);
+}
+/* La pregunta, a la izquierda y con el acento de la casa. */
+.msg.sistema{align-self:flex-start;background:var(--soft);border-left:3px solid var(--amber);}
+/* El experto, a la derecha: es quien aporta el conocimiento y se lee como
+   respuesta. El entrevistador, a la izquierda, con menos peso. */
+.msg.experto{align-self:flex-end;border-left:3px solid var(--verde);}
+.msg.entrevistador{align-self:flex-start;border-left:3px solid var(--line-fuerte);}
+.msg.provisional{opacity:.6;font-style:italic;border-style:dashed;box-shadow:none;}
+.msg-hd{display:flex;gap:var(--e2);align-items:center;font-size:12px;
+  color:var(--muted);margin-bottom:var(--e1);}
+.msg-tx{white-space:pre-wrap;border-radius:var(--r1);padding:2px var(--e1);
+  margin-left:calc(var(--e1) * -1);transition:background .12s ease;}
+.msg-tx:focus{background:var(--soft);outline:none;box-shadow:0 0 0 2px var(--verde-f);}
+
+.envio{margin-top:var(--e3);align-items:flex-end;}
+.envio textarea{min-height:52px;}
+
+/* ======================= 12f. Propuesta del agente =======================
+   Borde ámbar, que en toda la aplicación significa «esto lo dedujo una
+   máquina»: igual que las clases inferidas del razonador. Nada confirmado
+   lleva ese color.                                                          */
+.propuesta{border-left:4px solid var(--amber);}
+/* Campo que el experto corrigió respecto del borrador. Verlo mientras se
+   corrige es lo que hace evidente, en la propia entrevista, dónde falla el
+   agente; y al cerrar la sesión ya está contado. */
+.tocado{border-color:var(--verde) !important;background:var(--verde-f);}
+
 /* ============================== 13. Avisos ============================== */
 .aviso{
   border:1px solid var(--amber);background:var(--ambar-f);color:var(--ambar-t);
@@ -506,6 +546,9 @@ button.con-ico{display:inline-flex;align-items:center;gap:var(--e2);}
 }
 @media (max-width:640px){
   body{font-size:15px;}
+  .msg{max-width:96%;}
+  .chat{max-height:52vh;}
+  .envio{flex-direction:column;align-items:stretch;}
   .mic-boton{width:96px;height:96px;}
   .mic-boton .ico{width:40px;height:40px;}
   .mic-boton.rec::before,.mic-boton.rec::after{width:96px;height:96px;}

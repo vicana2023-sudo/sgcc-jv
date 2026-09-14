@@ -10,13 +10,14 @@
 import { cargarGrafo, E, corto, NS } from "./grafo.js";
 import { CONSULTAS, ejecutar, opciones } from "./consultas.js";
 import { construirIndices, responder } from "./rag.js";
-import { crearVoz } from "./voz.js";
+import { crearVoz, crearLector } from "./voz.js";
 import { ROLES, rolActual, fijarRol, alCambiarRol, vistasPermitidas, puedeVer,
          consultasPermitidas, haySesion } from "./auth.js";
 import { crearValidacion } from "./validacion.js";
 import { arrancarSesion, entrar, salir, mensajeDeError } from "./sesion.js";
 import { ICO, botonIcono, cambiarIcono } from "./iconos.js";
 import { crearRed } from "./red.js";
+import { proponerLocal, proponerConModelo, compararConPropuesta } from "./proponer.js";
 import { abrirAlmacen, modoAlmacen, motivoAlmacen,
          listar, guardar, actualizar, borrar, vaciar, escuchar, nuevoId } from "./almacen.js";
 
@@ -711,9 +712,16 @@ function guardarSesion() {
 const cronoEnt = crearCronometro((t) => { const e = $("#e-tiempo"); if (e) e.textContent = t; });
 
 const vozEnt = crearVoz({
-  onParcial: (t) => { const i = $("#e-interim"); if (i) i.textContent = t; },
+  onParcial: (t) => {
+    const i = $("#e-interim");
+    if (!i) return;
+    i.textContent = t;
+    i.classList.toggle("hide", !t);
+    const ch = $("#e-chat"); if (ch) ch.scrollTop = ch.scrollHeight;
+  },
   onFinal: (t) => { anadirTurno(t, vozEnt.quien || "experto", "voz"); },
-  onFin: () => { cronoEnt.parar(); pintarEstadoGrabacion(false); const i = $("#e-interim"); if (i) i.textContent = ""; },
+  onFin: () => { cronoEnt.parar(); pintarEstadoGrabacion(false);
+    const i = $("#e-interim"); if (i) { i.textContent = ""; i.classList.add("hide"); } },
   onError: (m) => { cronoEnt.parar(); pintarEstadoGrabacion(false); const e = $("#e-err"); if (e) { e.textContent = m; e.classList.remove("hide"); } },
 });
 
@@ -723,16 +731,12 @@ const vozEnt = crearVoz({
    haber perdido la respuesta. */
 function pintarEstadoGrabacion(grabando) {
   const b = $("#e-voz");
-  if (b) {
-    b.classList.toggle("rec", grabando);
-    cambiarIcono(b, grabando ? "detener" : "microfono",
-      grabando ? "Detener" : "Grabar al experto");
-  }
-  const t = $("#e-testigo");
-  if (t) {
-    t.classList.toggle("hide", !grabando);
-    if (!grabando) { const e = $("#e-tiempo"); if (e) e.textContent = ""; }
-  }
+  if (b) { b.classList.toggle("rec", grabando); b.innerHTML = grabando ? ICO.detener : ICO.microfono; }
+  const pie = $("#e-mic-pie");
+  if (pie) pie.textContent = grabando
+    ? "Escuchando al experto… toque para terminar"
+    : "Toque y deje hablar al experto";
+  const t = $("#e-tiempo"); if (t && !grabando) t.textContent = "";
 }
 
 function turnosActuales() {
@@ -747,6 +751,21 @@ function anadirTurno(texto, quien, via) {
   pintarSesion();
 }
 
+/* Lector de la pregunta en voz alta. El entrevistador la ve en pantalla; el
+   experto no. En una entrevista de campo, pasarle el teléfono para que lea es
+   peor que leérsela. */
+const lector = crearLector({
+  onFin: () => pintarEstadoLectura(false),
+  onError: (m) => { const e = $("#e-err"); if (e) { e.textContent = m; e.classList.remove("hide"); } },
+});
+
+function pintarEstadoLectura(leyendo) {
+  const b = $("#e-leer");
+  if (!b) return;
+  b.classList.toggle("rec", leyendo);
+  cambiarIcono(b, leyendo ? "detener" : "ondas", leyendo ? "Detener" : "Escuchar");
+}
+
 function pintarSesion() {
   const c = $("#entrevista-app");
   c.innerHTML = "";
@@ -755,21 +774,44 @@ function pintarSesion() {
 
   const p = ENT.cola[ENT.idx];
   const caja = el("div", "card");
+
   const cab = el("div", "row");
   cab.style.justifyContent = "space-between";
-  cab.appendChild(el("span", "note", `${p.id} · ${p.bloque}`));
-  cab.appendChild(el("span", "note", `${ENT.idx + 1} de ${ENT.cola.length} · ${ENT.reglas.length} reglas`));
+  cab.appendChild(el("span", "note", p.id + " · " + p.bloque));
+  cab.appendChild(el("span", "note",
+    (ENT.idx + 1) + " de " + ENT.cola.length + " · " + ENT.reglas.length + " reglas"));
   caja.appendChild(cab);
-  caja.appendChild(el("h2", "serif h2", p.texto));
-  caja.appendChild(el("p", "note", "Destino en el modelo: " + p.destino));
 
   const errd = el("div", "err hide"); errd.id = "e-err";
   caja.appendChild(errd);
 
-  const cont = el("div");
+  /* ---------------------------- la conversación --------------------------
+     La pregunta es el primer mensaje y el experto responde debajo. No es
+     adorno: convierte la pantalla en algo que el experto puede seguir, en vez
+     de un formulario que solo entiende quien entrevista.                    */
+  const chat = el("div", "chat"); chat.id = "e-chat";
+
+  const burbujaP = el("div", "msg sistema");
+  const cabP = el("div", "msg-hd");
+  cabP.appendChild(el("span", null, "Pregunta del banco"));
+  const bLeer = botonIcono("ondas", "Escuchar", "g sm"); bLeer.id = "e-leer";
+  bLeer.title = lector.disponible
+    ? "Leer la pregunta en voz alta"
+    : "Este navegador no tiene voces instaladas para leer en alto.";
+  bLeer.disabled = !lector.disponible;
+  bLeer.onclick = () => {
+    if (lector.activo()) { lector.detener(); pintarEstadoLectura(false); return; }
+    if (lector.hablar(p.texto)) pintarEstadoLectura(true);
+  };
+  cabP.appendChild(bLeer);
+  burbujaP.appendChild(cabP);
+  burbujaP.appendChild(el("div", "msg-tx", p.texto));
+  burbujaP.appendChild(el("div", "note", "Destino en el modelo: " + p.destino));
+  chat.appendChild(burbujaP);
+
   turnosActuales().forEach((t, i) => {
-    const d = el("div", "turn " + (t.quien === "experto" ? "exp" : "ent"));
-    const hd = el("div", "turn-hd");
+    const d = el("div", "msg " + (t.quien === "experto" ? "experto" : "entrevistador"));
+    const hd = el("div", "msg-hd");
     hd.appendChild(el("span", null, t.quien === "experto" ? "Experto" : "Entrevistador"));
     hd.appendChild(el("span", "tag", t.via));
     if (t.revisado) hd.appendChild(el("span", "tag esp", "corregido"));
@@ -777,76 +819,187 @@ function pintarSesion() {
     bq.style.marginLeft = "auto";
     bq.onclick = () => { turnosActuales().splice(i, 1); guardarSesion(); pintarSesion(); };
     hd.appendChild(bq);
-    const tx = el("div", "turn-tx", t.texto);
+    const tx = el("div", "msg-tx", t.texto);
     tx.contentEditable = "true";
+    tx.title = "Puede corregir aquí lo que el reconocedor entendió mal";
     tx.onblur = () => {
       const nv = tx.textContent.trim();
       if (nv && nv !== t.texto) { t.texto = nv; t.revisado = nv !== t.original; guardarSesion(); }
     };
-    d.appendChild(hd); d.appendChild(tx); cont.appendChild(d);
+    d.appendChild(hd); d.appendChild(tx);
+    chat.appendChild(d);
   });
-  caja.appendChild(cont);
-  const inter = el("div", "interim"); inter.id = "e-interim";
-  caja.appendChild(inter);
 
-  const bar = el("div", "row");
-  bar.style.marginTop = "12px";
-  const bv = botonIcono("microfono", "Grabar al experto", "g"); bv.id = "e-voz";
+  const inter = el("div", "msg experto provisional hide"); inter.id = "e-interim";
+  chat.appendChild(inter);
+  caja.appendChild(chat);
+
+  /* ----------------------------- el micrófono ---------------------------- */
+  const mic = el("div", "mic-zona");
+  const bv = el("button", "mic-boton"); bv.id = "e-voz"; bv.type = "button";
+  bv.setAttribute("aria-label", "Grabar la respuesta del experto");
+  bv.innerHTML = ICO.microfono;
   bv.onclick = () => {
-    if (!vozEnt.disponible) { errd.textContent = "Este navegador no tiene reconocimiento de voz. Escriba la respuesta."; errd.classList.remove("hide"); return; }
+    errd.classList.add("hide");
+    if (!vozEnt.disponible) {
+      errd.textContent = "Este navegador no reconoce la voz. Escriba la respuesta abajo.";
+      errd.classList.remove("hide");
+      return;
+    }
     if (vozEnt.activo()) { vozEnt.detener(); return; }
+    /* No grabar mientras el propio sistema habla: el micrófono se oiría a sí
+       mismo y el reconocedor transcribiría la pregunta como si fuera respuesta. */
+    lector.detener(); pintarEstadoLectura(false);
     vozEnt.quien = "experto";
     pintarEstadoGrabacion(true);
     cronoEnt.arrancar();
     vozEnt.iniciar();
   };
-  bar.appendChild(bv);
+  mic.appendChild(bv);
+  const micPie = el("div", "mic-pie");
+  micPie.appendChild(Object.assign(el("span", null, "Toque y deje hablar al experto"), { id: "e-mic-pie" }));
+  micPie.appendChild(Object.assign(el("span", "mic-tiempo"), { id: "e-tiempo" }));
+  mic.appendChild(micPie);
+  caja.appendChild(mic);
 
-  const testigo = el("span", "testigo hide"); testigo.id = "e-testigo";
-  testigo.innerHTML = ICO.grabando;
-  testigo.appendChild(el("span", null, "grabando"));
-  testigo.appendChild(Object.assign(el("span", "mic-tiempo"), { id: "e-tiempo" }));
-  bar.appendChild(testigo);
+  /* -------------------------- escribir, que es enviar --------------------
+     No hay botón «Añadir turno»: la caja de texto ES el turno y enviar lo
+     añade. Separados, obligaban a escribir y después acordarse de pulsar otra
+     cosa, que es justo el paso que se olvida.                               */
+  const barEnv = el("div", "row envio");
+  const ta = el("textarea"); ta.id = "e-texto"; ta.rows = 2;
+  ta.placeholder = "O escriba lo que dijo el experto y pulse Enter";
+  ta.style.flex = "1";
+  const enviar = () => {
+    const v = ta.value.trim();
+    if (!v) return;
+    ta.value = "";
+    anadirTurno(v, "experto", "escrito");
+  };
+  /* Enter envía, Mayúsculas+Enter hace párrafo: lo que espera cualquiera que
+     haya usado un chat. */
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
+  });
+  const bEnv = botonIcono("flecha", "Enviar");
+  bEnv.onclick = enviar;
+  barEnv.appendChild(ta);
+  barEnv.appendChild(bEnv);
+  caja.appendChild(barEnv);
 
-  const brep = el("button", "g", "Repregunta del banco");
-  brep.onclick = () => anadirTurno(p.repregunta, "entrevistador", "escrito");
-  bar.appendChild(brep);
-  caja.appendChild(bar);
-
-  const ta = el("textarea");
-  ta.placeholder = "O escriba lo que dijo el experto";
-  ta.style.marginTop = "12px";
-  caja.appendChild(ta);
+  /* ------------------------------ qué sigue ------------------------------ */
   const bar2 = el("div", "row");
-  bar2.style.marginTop = "10px";
-  const badd = el("button", "g", "Añadir turno");
-  badd.onclick = () => { anadirTurno(ta.value, "experto", "escrito"); };
-  const bform = el("button", null, "Formalizar la regla");
+  bar2.style.marginTop = "var(--e4)";
+  const brep = botonIcono("persona", "Repregunta del banco", "g");
+  brep.title = p.repregunta;
+  brep.onclick = () => anadirTurno(p.repregunta, "entrevistador", "escrito");
+  const bform = botonIcono("revisar", "Formalizar la regla");
   bform.onclick = () => formalizar(caja);
   const bsalt = el("button", "g", "Saltar");
   bsalt.onclick = () => { ENT.avance.push({ id: p.id, estado: "Pendiente" }); ENT.idx++; guardarSesion(); pintarSesion(); };
   const bna = el("button", "g", "No aplica");
   bna.onclick = () => { ENT.avance.push({ id: p.id, estado: "No aplica" }); ENT.idx++; guardarSesion(); pintarSesion(); };
-  [badd, bform, bsalt, bna].forEach((b) => bar2.appendChild(b));
+  [brep, bform, bsalt, bna].forEach((b) => bar2.appendChild(b));
   caja.appendChild(bar2);
+
   c.appendChild(caja);
+  chat.scrollTop = chat.scrollHeight;
 }
 
-function formalizar(caja) {
+/* ------------------- el agente propone, el experto dispone -----------------
+   Antes esto era un formulario en blanco: el entrevistador escribía la
+   condición y la acción a partir de lo que acababa de oír. Ahí se colaba el
+   problema de fondo de la elicitación: lo que quedaba escrito era la
+   interpretación del entrevistador, y nadie podía distinguirla después de la
+   del experto.
+
+   Ahora el agente redacta un borrador y el experto lo corrige delante del
+   entrevistador. Se guardan los dos: el borrador y lo que quedó. Esa
+   diferencia —qué parte de la regla sobrevivió al experto— es un resultado de
+   la tesis, no un detalle de interfaz: mide si el modelo formaliza bien el
+   conocimiento hablado o si solo lo parece.                                  */
+async function formalizar(caja) {
   const p = ENT.cola[ENT.idx];
-  const ultimo = [...turnosActuales()].reverse().find((t) => t.quien === "experto");
-  if (!ultimo) { const e = $("#e-err"); e.textContent = "Todavía no hay ningún turno del experto que formalizar."; e.classList.remove("hide"); return; }
-  const f = el("div", "card");
-  f.style.borderLeft = "5px solid var(--verde)";
-  f.appendChild(el("h2", "serif h2", "Formalice la regla y confírmela con el experto"));
-  const cond = el("textarea"); cond.placeholder = "SI: en qué situación aplica";
-  const acc = el("textarea"); acc.placeholder = "ENTONCES: qué se debe hacer";
-  const mot = el("input"); mot.placeholder = "PORQUE: motivo";
+  const dichos = turnosActuales().filter((t) => t.quien === "experto");
+  if (!dichos.length) {
+    const e = $("#e-err");
+    e.textContent = "Todavía no hay ninguna respuesta del experto que formalizar.";
+    e.classList.remove("hide");
+    return;
+  }
+  const previo = $("#panel-regla");
+  if (previo) previo.remove();
+
+  /* Se le pasa TODO lo que dijo el experto en esta pregunta, no solo el último
+     turno: una regla suele salir repartida en dos o tres frases. */
+  const texto = dichos.map((t) => t.texto).join(". ");
+
+  const f = el("div", "card propuesta");
+  f.id = "panel-regla";
+  f.appendChild(el("h2", "serif h2", "Propuesta del agente"));
+  const cargando = el("p", "note", "Redactando la regla a partir de lo que dijo el experto…");
+  f.appendChild(cargando);
+  caja.parentNode.appendChild(f);
+  f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  let prop;
+  let via = "proponente léxico local";
+  if ($("#usar-modelo") && $("#usar-modelo").checked) {
+    try { prop = await proponerConModelo(ENDPOINT_MODELO, texto, p); via = "modelo de lenguaje"; }
+    catch (e) { prop = proponerLocal(texto, p); via = "local (el modelo no respondió)"; }
+  } else {
+    prop = proponerLocal(texto, p);
+  }
+  cargando.remove();
+
+  const cab = el("div", "row");
+  cab.style.justifyContent = "space-between";
+  cab.appendChild(el("span", "tag esp", "propuesta, sin confirmar"));
+  cab.appendChild(el("span", "note", via));
+  f.insertBefore(cab, f.firstChild.nextSibling);
+
+  f.appendChild(el("p", "note",
+    "Esto lo redactó el sistema, no el experto. Léalo en voz alta, corrija lo que haga " +
+    "falta y confírmelo con él. Lo que usted cambie queda registrado: es la medida de " +
+    "cuánto acertó el agente."));
+
+  if (prop.aviso) {
+    f.appendChild(Object.assign(el("div", "aviso"), { textContent: prop.aviso }));
+  }
+
+  /* Leer la propuesta en voz alta: el experto confirma lo que oye, no lo que
+     el entrevistador dice que dice la pantalla. */
+  const bLeerP = botonIcono("ondas", "Leer la propuesta al experto", "g sm");
+  bLeerP.disabled = !lector.disponible;
+  bLeerP.onclick = () => {
+    if (lector.activo()) { lector.detener(); return; }
+    lector.hablar(`Si ${cond.value}. Entonces ${acc.value}. ${mot.value ? "Porque " + mot.value : ""}`);
+  };
+  f.appendChild(bLeerP);
+
+  const cond = el("textarea"); cond.value = prop.condicion; cond.placeholder = "SI: en qué situación aplica";
+  const acc = el("textarea"); acc.value = prop.accion; acc.placeholder = "ENTONCES: qué se debe hacer";
+  const mot = el("input"); mot.value = prop.motivo; mot.placeholder = "PORQUE: motivo";
   const tipo = el("select");
   BANCO.cat.TipoRegla.forEach(([i, l]) => tipo.add(new Option(l, i)));
-  const pn = el("input"); pn.placeholder = "Parámetro, p. ej. minimoUnidadesRuta";
-  const pv = el("input"); pv.type = "number"; pv.placeholder = "Valor";
-  const frag = el("textarea"); frag.value = ultimo.texto;
+  if ([...tipo.options].some((o) => o.value === prop.tipo)) tipo.value = prop.tipo;
+  const pn = el("input"); pn.value = prop.parametro; pn.placeholder = "Parámetro, p. ej. minimoUnidadesRuta";
+  const pv = el("input"); pv.type = "number"; pv.value = prop.valor; pv.placeholder = "Valor";
+  const frag = el("textarea"); frag.value = prop.fragmento;
+
+  /* Marca en el campo lo que el experto tocó. Verlo mientras se corrige es lo
+     que hace evidente, en la propia entrevista, dónde falla el agente. */
+  const original = { condicion: prop.condicion, accion: prop.accion, motivo: prop.motivo,
+                     tipo: prop.tipo, parametro: prop.parametro, valor: String(prop.valor) };
+  const vigilar = (campo, elemento) => {
+    const marcar = () => elemento.classList.toggle("tocado",
+      String(elemento.value).trim() !== String(original[campo] || "").trim());
+    elemento.addEventListener("input", marcar);
+    elemento.addEventListener("change", marcar);
+  };
+  vigilar("condicion", cond); vigilar("accion", acc); vigilar("motivo", mot);
+  vigilar("tipo", tipo); vigilar("parametro", pn); vigilar("valor", pv);
+
   [["Condición (SI)", cond], ["Acción (ENTONCES)", acc], ["Motivo", mot]].forEach(([t, i]) => {
     f.appendChild(el("label", "lbl", t)); f.appendChild(i);
   });
@@ -857,20 +1010,40 @@ function formalizar(caja) {
   f.appendChild(g);
   f.appendChild(el("label", "lbl", "Palabras del experto que sustentan la regla"));
   f.appendChild(frag);
+
   const bar = el("div", "row");
-  bar.style.marginTop = "13px";
-  const ok = el("button", null, "El experto confirma");
+  bar.style.marginTop = "var(--e4)";
+  const ok = botonIcono("revisar", "El experto confirma");
   ok.onclick = () => {
-    if (!cond.value.trim() || !acc.value.trim()) { alert("Complete la condición y la acción."); return; }
+    if (!cond.value.trim() || !acc.value.trim()) {
+      alert("Complete la condición y la acción antes de confirmar.");
+      return;
+    }
+    /* Sin evidencia no hay regla: mismo criterio que en la bandeja, y que las
+       reglas de Firestore imponen para los hechos extraídos. */
+    if (!frag.value.trim()) {
+      alert("Una regla sin las palabras del experto que la sustentan no se puede guardar.");
+      return;
+    }
+    const final = { condicion: cond.value.trim(), accion: acc.value.trim(), motivo: mot.value.trim(),
+                    tipo: tipo.value, parametro: pn.value.trim(), valor: String(pv.value) };
+    const dif = compararConPropuesta(original, final);
+
     ENT.reglas.push({
-      ID: "REG-" + nz(ENT.reglas.length + 1), "Texto original": ultimo.texto,
-      "Tipo de regla": tipo.value, "Validación": "Pendiente",
-      "Condición (SI)": cond.value.trim(), "Acción (ENTONCES)": acc.value.trim(),
+      ID: "REG-" + nz(ENT.reglas.length + 1), "Texto original": frag.value.trim(),
+      "Tipo de regla": final.tipo, "Validación": "Confirmada por el experto",
+      "Condición (SI)": final.condicion, "Acción (ENTONCES)": final.accion,
       Categorías: p.veh || "", Rutas: (p.extra.match(/RUT-\d+/) || [""])[0],
       "Tipos de mantenimiento": p.mant || "", Componentes: p.comp || "",
-      Parámetro: pn.value.trim(), Valor: pv.value, "Peso (0-1)": "", Motivo: mot.value.trim(),
+      Parámetro: final.parametro, Valor: final.valor, "Peso (0-1)": "", Motivo: final.motivo,
       Fuente: ENT.idExperto, Sesión: "SES-" + nz(ENT.numero, 2),
-      "ID pregunta origen": p.id, "Validada por": "", "Fecha validación": "",
+      "ID pregunta origen": p.id, "Validada por": ENT.idExperto, "Fecha validación": hoy(),
+      /* La procedencia de la formalización, que es lo que permite medirla
+         después y lo que distingue esta captura de una transcripción. */
+      "Propuesta por": via,
+      "Propuesta original": JSON.stringify(original),
+      "Campos corregidos": dif.camposTocados.join(", "),
+      "Aceptada sin cambios": dif.intacta ? "Sí" : "No",
     });
     ENT.avance.push({ id: p.id, estado: "Respondida" });
     ENT.idx++;
@@ -881,7 +1054,6 @@ function formalizar(caja) {
   no.onclick = () => f.remove();
   bar.appendChild(ok); bar.appendChild(no);
   f.appendChild(bar);
-  caja.parentNode.appendChild(f);
   f.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
@@ -893,9 +1065,18 @@ function pintarCierreEntrevista() {
   const corr = turnos.filter((t) => t.revisado).length;
   const caja = el("div", "card");
   caja.appendChild(el("h2", "serif h2", ENT.reglas.length ? `${ENT.reglas.length} reglas capturadas` : "Sesión cerrada sin reglas"));
+  const intactas = ENT.reglas.filter((r) => r["Aceptada sin cambios"] === "Sí").length;
   caja.appendChild(el("p", "note",
     `${ENT.avance.length} preguntas vistas · ${turnos.length} turnos (${voz} por voz) · ` +
     `${corr} transcripciones corregidas${voz ? ` (${Math.round((corr / voz) * 100)} % de los turnos hablados)` : ""}`));
+  if (ENT.reglas.length) {
+    /* Con las reglas de una sesión esto no es una métrica; con las 252
+       preguntas de competencia, sí. Se muestra aquí porque es el momento en
+       que el entrevistador todavía recuerda por qué corrigió lo que corrigió. */
+    caja.appendChild(el("p", "note",
+      `El agente acertó la formalización entera en ${intactas} de ${ENT.reglas.length} reglas. ` +
+      `El detalle de qué campos se corrigieron viaja en el JSON de la sesión.`));
+  }
   if (ENT.reglas.length) {
     caja.appendChild(tabla(["ID", "Tipo de regla", "Condición (SI)", "Acción (ENTONCES)", "ID pregunta origen"], ENT.reglas));
   }
