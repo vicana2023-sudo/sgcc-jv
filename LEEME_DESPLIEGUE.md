@@ -85,6 +85,48 @@ Cuidado con una confusión frecuente: la `apiKey` que aparece en `public/app/fir
 
 ---
 
+## Dónde se guarda lo que produce el sistema
+
+Tres cosas dejan de vivir solo en el navegador: la **bandeja de revisión**, las **sesiones de entrevista** y los **resultados de validación**. `public/app/almacen.js` es el único punto que decide dónde van, y tiene dos implementaciones detrás:
+
+- **Firestore**, cuando el proyecto lo tiene habilitado y hay sesión. Datos compartidos, reglas del servidor.
+- **localStorage**, cuando no. Datos en ese navegador y nada más.
+
+La diferencia no es de infraestructura, y conviene decirla así en la defensa: **sin Firestore, lo que reporta un conductor no lo ve el jefe de mantenimiento.** La cadena que dibuja el panel «qué pasa ahora con su reporte» describe un recorrido que no cruza de un navegador a otro. La aplicación lo advierte en la propia bandeja, con el motivo exacto.
+
+El respaldo local no se quita: el prototipo tiene que poder abrirse con `python -m http.server` y sin proyecto, que es como se prueba en una máquina prestada.
+
+### Habilitarlo, una sola vez
+
+1. Habilitar la API en [la consola](https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=sgcc-jv).
+2. Crear la base de datos. **La región no se puede cambiar nunca**; `southamerica-east1` es la más cercana a Lima:
+
+```bash
+firebase firestore:databases:create "(default)" --location southamerica-east1
+```
+
+3. Publicar las reglas:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+### Qué imponen las reglas
+
+`firestore.rules` es donde el control de acceso deja de ser cosmético. Se evalúan en los servidores de Google y leen el mismo claim `rol` del token, que está firmado y el cliente no puede fabricar.
+
+| Colección | Quién lee | Quién escribe |
+|---|---|---|
+| `propuestas` | quien la creó, más jefe de mantenimiento e investigador | crea cualquier rol; **solo el revisor cambia el estado** |
+| `sesiones` | quien la tomó y el investigador | los mismos |
+| `validacion/{uid}` | su dueño y el investigador | solo su dueño |
+
+Lo importante para la tesis está en `propuestas`: una actualización solo puede tocar `estado`, `revisadoPor` y `revisadoEn`. Ni el predicado, ni el objeto, ni el fragmento de evidencia. **«El agente propone, nunca escribe» deja de ser una convención del código y pasa a ser una restricción del almacén**, que nadie puede saltarse desde el navegador. Y una propuesta sin `fragmento` no se puede ni crear: sin evidencia no hay hecho.
+
+> Hubo brevemente un proyecto de calidad aparte (`sgcc-jv-qa`). Se retiró: se trabaja sobre `sgcc-jv`. El proyecto vacío sigue existiendo en la consola hasta que se elimine a mano.
+
+---
+
 ## Despliegue continuo desde GitHub
 
 El repositorio es <https://github.com/vicana2023-sudo/sgcc-jv>. Con esto configurado, **cada cambio que llegue a `main` y toque el sitio se verifica y se publica sin que usted haga nada**. El flujo está en `.github/workflows/desplegar-hosting.yml`.

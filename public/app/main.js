@@ -15,9 +15,10 @@ import { ROLES, rolActual, fijarRol, alCambiarRol, vistasPermitidas, puedeVer,
          consultasPermitidas, haySesion } from "./auth.js";
 import { crearValidacion } from "./validacion.js";
 import { arrancarSesion, entrar, salir, mensajeDeError } from "./sesion.js";
-import { ETIQUETA_AMBIENTE } from "./firebase-config.js";
 import { ICO, botonIcono, cambiarIcono } from "./iconos.js";
 import { crearRed } from "./red.js";
+import { abrirAlmacen, modoAlmacen, motivoAlmacen,
+         listar, guardar, actualizar, borrar, vaciar, escuchar, nuevoId } from "./almacen.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -29,8 +30,13 @@ const ahora = () => new Date().toISOString().slice(0, 16).replace("T", " ");
 
 let G = null, IX = null, BANCO = null, HIST = null, VAL = null, RED = null;
 const ENDPOINT_MODELO = "/api/agente";     // función servidor, si está desplegada
-const CLAVE_PROP = "etul4_propuestas_v1";
-const CLAVE_SES = "etul4_entrevista_v1";
+/* Nombres de colección, no claves de localStorage: almacen.js decide si eso se
+   traduce en un documento de Firestore o en una entrada del navegador. */
+const COL_PROP = "propuestas";
+const COL_SES = "sesiones";
+let USUARIO = null;          // { uid, correo, rol }, para firmar lo que se cree
+let dejarDeEscuchar = null;
+let SESION_PENDIENTE = null; // entrevista sin cerrar, si la hay
 
 /* --------------------------- almacenamiento local ------------------------- */
 let ALMACEN = true;
@@ -56,16 +62,6 @@ const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); }
    Las declaraciones de función se elevan, así que se pueden llamar aquí
    arriba; el módulo se ejecuta con el DOM ya construido porque
    <script type="module"> es diferido.                                       */
-/* El distintivo de ambiente, antes que nada: si alguien se equivoca de sitio,
-   que lo vea en la propia pantalla de acceso y no después de reportar. */
-if (ETIQUETA_AMBIENTE) {
-  for (const id of ["#ambiente", "#ambiente-puerta"]) {
-    const e = $(id);
-    if (e) { e.textContent = ETIQUETA_AMBIENTE; e.classList.remove("hide"); }
-  }
-  document.title = `[${ETIQUETA_AMBIENTE}] ` + document.title;
-}
-
 aplicarPanelRol();
 prepararPuerta();
 
@@ -88,7 +84,26 @@ async function arrancar() {
     pintarSelectorClases();
     pintarReportar();
     pintarRevision();
-    VAL = crearValidacion($("#validacion-app"), HIST, { rol: rolActual, irA, descargar });
+    let evaluado = null;
+    if (USUARIO) {
+      try {
+        const docs = await listar("validacion");
+        const mio = docs.find((d) => d.id === USUARIO.uid);
+        if (mio && mio.historias) evaluado = mio.historias;
+      } catch (e) { /* sin servidor: se usa lo del navegador */ }
+    }
+    VAL = crearValidacion($("#validacion-app"), HIST,
+      { rol: rolActual, irA, descargar, usuario: USUARIO, evaluado });
+    /* Sesión de entrevista sin cerrar, si la hay. Solo las propias: las reglas
+       del servidor ya lo imponen, y aquí se filtra para que el investigador
+       —que sí las ve todas— no retome por error la de otro. */
+    try {
+      const sesiones = await listar(COL_SES);
+      SESION_PENDIENTE = sesiones
+        .filter((x) => !x.cerrada && (!USUARIO || x.creadoPor === USUARIO.uid))
+        .sort((a, b) => (b.creadoEn || "").localeCompare(a.creadoEn || ""))[0] || null;
+    } catch (e) { SESION_PENDIENTE = null; }
+
     RED = crearRed($("#red-app"), G, {
       alAbrirIndividuo: (iri) => { irA("explorar"); mostrarDetalle(iri); },
     });
@@ -188,8 +203,16 @@ function prepararPuerta() {
     }
 
     limpiar();
+    USUARIO = { uid: estado.usuario.uid, correo: estado.usuario.correo, rol: estado.rol };
     fijarRol(estado.rol);
     abrirPantalla(estado);
+    /* El almacén se abre antes que el grafo: si hay Firestore, la bandeja
+       llega compartida desde el primer pintado y no parpadea de vacía a llena. */
+    await abrirAlmacen(USUARIO);
+    if (dejarDeEscuchar) dejarDeEscuchar();
+    /* Con Firestore, el jefe de mantenimiento ve entrar el reporte del
+       conductor sin recargar. Sin él, esto no hace nada. */
+    dejarDeEscuchar = escuchar(COL_PROP, () => { if (puedeVer("revision")) pintarRevision(); });
     arrancar();                      // el grafo se descarga recién ahora
   }).catch(() => {
     fallo("No se pudo cargar Firebase. Revise su conexión y vuelva a intentarlo.");
@@ -205,6 +228,8 @@ function abrirPantalla(estado) {
 }
 
 function cerrarPantalla() {
+  if (dejarDeEscuchar) { dejarDeEscuchar(); dejarDeEscuchar = null; }
+  USUARIO = null;
   document.body.classList.add("sin-sesion");
   fijarRol(null);                     // dispara aplicarRol: oculta todo módulo
   $("#u-correo").textContent = "";
@@ -604,7 +629,10 @@ function preguntaDe(q) {
 function pintarEntrevista() {
   const c = $("#entrevista-app");
   c.innerHTML = "";
-  const guardada = leer(CLAVE_SES, null);
+  /* pintarEntrevista es sincrónica y la busca de sesiones no: se pinta primero
+     el formulario y el aviso de «hay una sesión sin terminar» se inserta arriba
+     cuando llega. Es preferible a dejar la pestaña en blanco esperando. */
+  const guardada = SESION_PENDIENTE;
   if (guardada && !ENT) {
     const av = el("div", "aviso");
     av.innerHTML = `<strong>Hay una sesión sin terminar</strong> del ${esc(guardada.fecha)}, ${esc(guardada.rol)}, con ${guardada.reglas.length} reglas.`;
@@ -612,7 +640,7 @@ function pintarEntrevista() {
     const b1 = el("button", null, "Retomar");
     b1.onclick = () => { ENT = guardada; ENT.cola = ENT.cola.map((id) => BANCO.q.map(preguntaDe).find((p) => p.id === id)).filter(Boolean); pintarSesion(); };
     const b2 = el("button", "g", "Descartar");
-    b2.onclick = () => { localStorage.removeItem(CLAVE_SES); pintarEntrevista(); };
+    b2.onclick = async () => { await borrar(COL_SES, guardada.id); SESION_PENDIENTE = null; pintarEntrevista(); };
     r.appendChild(b1); r.appendChild(b2); av.appendChild(r);
     c.appendChild(av);
   }
@@ -670,9 +698,14 @@ function pintarEntrevista() {
   c.appendChild(caja);
 }
 
+/* La sesión se guarda en cada turno, y ese es el punto: «persistir antes de
+   razonar». La escritura no se espera —guardarSesion() no es await— porque
+   bloquear la interfaz tras cada frase dictada haría inusable la entrevista;
+   si la red falla, almacen.js cae al navegador y no se pierde nada. */
 function guardarSesion() {
   if (!ENT) return;
-  escribir(CLAVE_SES, { ...ENT, cola: ENT.cola.map((p) => p.id) });
+  if (!ENT.id) ENT.id = nuevoId("SES");
+  guardar(COL_SES, ENT.id, { ...ENT, cola: ENT.cola.map((p) => p.id), cerrada: false });
 }
 
 const cronoEnt = crearCronometro((t) => { const e = $("#e-tiempo"); if (e) e.textContent = t; });
@@ -890,7 +923,10 @@ function pintarCierreEntrevista() {
     descargar(`sesion-${nz(ENT.numero, 2)}-transcripcion.txt`, txt);
   };
   const bn = el("button", "g", "Nueva sesión");
-  bn.onclick = () => { localStorage.removeItem(CLAVE_SES); ENT = null; pintarEntrevista(); };
+  bn.onclick = async () => {
+    if (ENT && ENT.id) await guardar(COL_SES, ENT.id, { ...ENT, cola: ENT.cola.map((p) => p.id), cerrada: true });
+    ENT = null; SESION_PENDIENTE = null; pintarEntrevista();
+  };
   bar.appendChild(bd); bar.appendChild(bn);
   caja.appendChild(bar);
   caja.appendChild(el("p", "note",
@@ -999,7 +1035,6 @@ function pintarReportar() {
   be.onclick = () => {
     const texto = ta.value.trim();
     if (!texto) { alert("Escriba o dicte qué pasó."); return; }
-    const props = leer(CLAVE_PROP, []);
     const base = { fecha: ahora(), vehiculo: selV.value, conductor: selD.value, ruta: selR.value, texto };
     // Los campos elegidos en una lista son datos confirmados por la persona: confianza 1.
     const directos = [];
@@ -1007,10 +1042,18 @@ function pintarReportar() {
     if (selS.value) directos.push({ predicado: "etul:severidad", objeto: selS.value });
     // El texto libre se interpreta: eso sí es extracción y va a revisión.
     const props2 = extraerDeTexto(texto, base, directos);
-    escribir(CLAVE_PROP, [...props, ...props2]);
-    ta.value = "";
-    pintarRevision();
-    pintarFlujoReporte(caja.parentNode, props2, selV.value);
+    be.disabled = true;
+    Promise.all(props2.map((p) => guardar(COL_PROP, p.id, p)))
+      .then(() => {
+        ta.value = "";
+        pintarRevision();
+        pintarFlujoReporte(caja.parentNode, props2, selV.value);
+      })
+      .catch((err) => {
+        errd.textContent = "No se pudo registrar el reporte: " + err.message;
+        errd.classList.remove("hide");
+      })
+      .finally(() => { be.disabled = false; });
   };
   bar.appendChild(be);
   caja.appendChild(bar);
@@ -1130,12 +1173,21 @@ function extraerDeTexto(texto, base, directos) {
 }
 
 /* ================================= REVISIÓN =============================== */
-function pintarRevision() {
+async function pintarRevision() {
   const c = $("#revision-app");
   c.innerHTML = "";
-  const props = leer(CLAVE_PROP, []);
-  if (!ALMACEN) c.appendChild(Object.assign(el("div", "aviso"),
-    { textContent: "Este navegador no permite guardar datos del sitio: la bandeja se vacía al recargar." }));
+  const props = (await listar(COL_PROP)).sort((a, b) => (a.creadoEn || "").localeCompare(b.creadoEn || ""));
+
+  /* Dónde están estos datos, dicho en la propia pantalla. Creer que se está
+     compartiendo cuando no, es peor que no compartir. */
+  const nota = el("div", modoAlmacen() === "firestore" ? "aviso" : "err");
+  nota.innerHTML = modoAlmacen() === "firestore"
+    ? `<strong>Bandeja compartida.</strong> Los reportes de todos los usuarios llegan aquí en vivo, y las reglas del servidor deciden quién puede aceptarlos.`
+    : `<strong>Bandeja solo en este navegador</strong> (${esc(motivoAlmacen())}). Lo que reporte un conductor desde otro equipo no aparecerá aquí, y esto se pierde al borrar los datos del sitio.`;
+  c.appendChild(nota);
+
+  if (!ALMACEN && modoAlmacen() !== "firestore") c.appendChild(Object.assign(el("div", "aviso"),
+    { textContent: "Este navegador tampoco permite guardar datos del sitio: la bandeja se vacía al recargar." }));
   if (!props.length) {
     c.appendChild(Object.assign(el("div", "card"),
       { innerHTML: '<p class="note" style="margin:0">La bandeja está vacía. Registre un reporte en «Reportar falla» para ver cómo funciona.</p>' }));
@@ -1188,13 +1240,25 @@ function pintarRevision() {
   const bd = el("button", "g", "Descargar la bandeja");
   bd.onclick = () => descargar("bandeja-revision.json", JSON.stringify(props, null, 2), "application/json");
   const bv = el("button", "g", "Vaciar la bandeja");
-  bv.onclick = () => { if (confirm("¿Vaciar todas las propuestas?")) { escribir(CLAVE_PROP, []); pintarRevision(); } };
+  bv.onclick = async () => {
+    if (!confirm("¿Vaciar todas las propuestas? No se puede deshacer.")) return;
+    const ok = await vaciar(COL_PROP);
+    if (!ok) alert("El servidor no permitió borrar: solo el investigador puede vaciar la bandeja.");
+    pintarRevision();
+  };
   bar.appendChild(bd); bar.appendChild(bv);
   c.appendChild(bar);
 }
-function cambiar(id, estado) {
-  const props = leer(CLAVE_PROP, []).map((p) => (p.id === id ? { ...p, estado, revisadoEn: ahora() } : p));
-  escribir(CLAVE_PROP, props);
+/* Las reglas de Firestore solo dejan tocar estos tres campos, y solo a los
+   roles revisores. Aceptar no puede aprovecharse para reescribir el hecho: eso
+   es «el agente propone, nunca escribe» sostenido por el almacén y no por la
+   buena voluntad del código. */
+async function cambiar(id, estado) {
+  await actualizar(COL_PROP, id, {
+    estado,
+    revisadoPor: USUARIO ? USUARIO.uid : "local",
+    revisadoEn: ahora(),
+  });
   pintarRevision();
 }
 

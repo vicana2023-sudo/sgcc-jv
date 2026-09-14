@@ -17,12 +17,37 @@
 ============================================================================= */
 
 import { puedeVer, ROLES, VISTAS } from "./auth.js";
+import { modoAlmacen, guardar } from "./almacen.js";
 
-const CLAVE = "etul4_validacion_v1";
+const COL = "validacion";
 
 const el = (t, c, x) => { const n = document.createElement(t); if (c) n.className = c; if (x !== undefined) n.textContent = x; return n; };
-const leer = () => { try { return JSON.parse(localStorage.getItem(CLAVE)) ?? {}; } catch (e) { return {}; } };
-const escribir = (v) => { try { localStorage.setItem(CLAVE, JSON.stringify(v)); } catch (e) {} };
+
+/* Un documento por persona, con su identificador de usuario como nombre: así la
+   regla del servidor es trivial («solo escribes sobre el tuyo») y no hay forma
+   de tocar el veredicto de otro.
+
+   El estado se mantiene en memoria y se vuelca entero en cada cambio. Son 72
+   entradas: escribir el documento completo cuesta menos que llevar la cuenta de
+   qué campo cambió, y evita que un fallo a mitad deje media evaluación.
+
+   La copia en el navegador se conserva siempre, tenga o no Firestore: es lo que
+   permite seguir evaluando si se cae la red durante una sesión de validación,
+   que puede durar una hora.                                                  */
+let cache = null;
+let quien = "local";
+
+const leer = () => {
+  if (cache) return cache;
+  try { cache = JSON.parse(localStorage.getItem("etul4_" + COL + "_" + quien)) ?? {}; }
+  catch (e) { cache = {}; }
+  return cache;
+};
+const escribir = (v) => {
+  cache = v;
+  try { localStorage.setItem("etul4_" + COL + "_" + quien, JSON.stringify(v)); } catch (e) {}
+  if (modoAlmacen() === "firestore") guardar(COL, quien, { historias: v });
+};
 const ahora = () => new Date().toISOString().slice(0, 16).replace("T", " ");
 
 /* Clase de etiqueta por veredicto, para que el color diga lo mismo que el texto. */
@@ -42,6 +67,11 @@ const COLOR = {
  *        descargar función (nombre, contenido, tipo)
  */
 export function crearValidacion(contenedor, datos, opciones = {}) {
+  /* El identificador del usuario llega desde main.js: sin él, los veredictos de
+     dos personas que compartieran navegador se pisarían. */
+  if (opciones.usuario && opciones.usuario.uid) quien = opciones.usuario.uid;
+  if (opciones.evaluado) cache = opciones.evaluado;
+
   /* Nunca debería llegar nulo —solo se pinta con sesión—, pero el panel no es
      el sitio donde descubrir que sí. */
   const rolDe = () => (opciones.rol ? opciones.rol() : null) || ROLES[0];
@@ -264,8 +294,11 @@ export function crearValidacion(contenedor, datos, opciones = {}) {
     contenedor.appendChild(pie);
 
     contenedor.appendChild(el("p", "note",
-      "Lo evaluado se guarda solo en este navegador. Para que cuente como evidencia de la " +
-      "validación hay que descargarlo: al borrar los datos del sitio se pierde."));
+      modoAlmacen() === "firestore"
+        ? "Lo evaluado queda guardado a su nombre en el servidor: puede seguir desde otro equipo. " +
+          "Aun así, descárguelo: el anexo de la tesis es el archivo, no la pantalla."
+        : "Lo evaluado se guarda solo en este navegador. Para que cuente como evidencia de la " +
+          "validación hay que descargarlo: al borrar los datos del sitio se pierde."));
   }
 
   return { pintar };

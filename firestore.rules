@@ -1,0 +1,107 @@
+rules_version = '2';
+
+/* =============================================================================
+   firestore.rules — control de acceso a los datos, del lado del servidor
+   ETUL 4 S.A.
+
+   Aquí está la diferencia entre ocultar y denegar, y es la respuesta a la
+   pregunta que más se repite sobre este prototipo.
+
+   Hasta ahora el rol decidía qué pestañas y qué consultas se veían: eso es
+   interfaz, y quien abriera la consola del navegador se lo saltaba. Estas
+   reglas se evalúan en los servidores de Google, leen el mismo custom claim
+   `rol` del token —firmado, no fabricable desde el cliente— y deciden qué
+   documentos salen y cuáles no. Un conductor puede pedir la bandeja entera: lo
+   que recibe es un error de permisos, no una lista.
+
+   La regla del capítulo 3 de la tesis, «el agente propone, nunca escribe»,
+   deja de ser una convención del código y pasa a ser una restricción del
+   almacén: en /propuestas, una actualización solo puede tocar el estado y quién
+   revisó. Ni el predicado, ni el objeto, ni el fragmento de evidencia. Nadie
+   puede reescribir el hecho que se le atribuyó a un modelo, ni siquiera el
+   investigador, ni siquiera desde el navegador. Para eso hay que pasar por el
+   SDK de administración, que no vive en el sitio.
+
+   Desplegar con:  firebase deploy --only firestore:rules
+============================================================================= */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ------------------------------ auxiliares ---------------------------- */
+    function rol() {
+      return request.auth.token.rol;
+    }
+    /* Autenticado NO basta: una cuenta sin rol asignado no puede hacer nada.
+       Es el mismo criterio que aplica la aplicación al entrar, y tiene que
+       estar repetido aquí: la interfaz no es una garantía. */
+    function identificado() {
+      return request.auth != null && rol() != null;
+    }
+    function revisor() {
+      return identificado() && rol() in ['jefe-mantenimiento', 'investigador'];
+    }
+    function investigador() {
+      return identificado() && rol() == 'investigador';
+    }
+    function mio(campo) {
+      return resource.data[campo] == request.auth.uid;
+    }
+
+    /* --------------------------- bandeja de revisión ----------------------
+       Un conductor crea propuestas y ve las suyas. Solo el jefe de
+       mantenimiento y el investigador ven la bandeja completa y deciden.     */
+    match /propuestas/{id} {
+
+      allow create: if identificado()
+        && request.resource.data.creadoPor == request.auth.uid
+        && request.resource.data.estado in ['ExtPropuesta', 'Confirmado']
+        /* Sin evidencia no hay hecho: es la decisión 7 del diseño, y aquí se
+           vuelve imposible de incumplir. La consulta Q27 detecta las que se
+           colaron antes de que esto existiera. */
+        && request.resource.data.fragmento is string
+        && request.resource.data.fragmento.size() > 0;
+
+      allow read: if revisor() || (identificado() && mio('creadoPor'));
+
+      /* La propuesta es inmutable salvo su veredicto. Aceptar o rechazar no
+         puede aprovecharse para cambiar lo que decía el hecho. */
+      allow update: if revisor()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['estado', 'revisadoPor', 'revisadoEn'])
+        && request.resource.data.estado in ['ExtAceptada', 'ExtRechazada']
+        && request.resource.data.revisadoPor == request.auth.uid;
+
+      /* Borrar destruye la trazabilidad: una propuesta rechazada es evidencia
+         de error de extracción y es lo que mide Q24. Solo el investigador, y
+         solo para limpiar datos de prueba. */
+      allow delete: if investigador();
+    }
+
+    /* --------------------------- sesiones de entrevista -------------------
+       Contienen las palabras textuales del experto. Las ve quien las tomó y el
+       investigador; nadie más, aunque sean datos ficticios: la costumbre es lo
+       que evita el descuido el día que sean reales.                          */
+    match /sesiones/{id} {
+      allow create: if identificado()
+        && request.resource.data.creadoPor == request.auth.uid;
+      allow read, update: if investigador() || (identificado() && mio('creadoPor'));
+      allow delete: if investigador();
+    }
+
+    /* ------------------------ resultados de validación --------------------
+       Un documento por persona, con el identificador del usuario como nombre:
+       así la regla es trivial de leer y no hay forma de escribir sobre el
+       veredicto de otro. El investigador lee todos, para el consolidado.     */
+    match /validacion/{uid} {
+      allow read: if investigador() || (identificado() && request.auth.uid == uid);
+      allow write: if identificado() && request.auth.uid == uid;
+    }
+
+    /* Todo lo demás, denegado. Sin esta cláusula, una colección nueva creada
+       sin reglas quedaría abierta. */
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

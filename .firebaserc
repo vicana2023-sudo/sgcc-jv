@@ -1,7 +1,5 @@
 {
   "projects": {
-    "default": "sgcc-jv",
-    "produccion": "sgcc-jv",
-    "calidad": "sgcc-jv-qa"
+    "default": "sgcc-jv"
   }
 }
