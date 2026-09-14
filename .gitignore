@@ -3,6 +3,11 @@ functions/node_modules/
 .firebase/
 *.log
 .env
+# Excepción: la configuración del agente NO lleva secretos, solo qué proveedor y
+# qué modelo atienden. Viaja con el repositorio porque es parte del despliegue.
+# NUNCA ponga una clave de API ahí: para eso está firebase functions:secrets:set.
+!functions/.env
+!functions/.env.example
 
 # carpetas del IDE
 .idea/

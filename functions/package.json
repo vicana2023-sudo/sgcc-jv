@@ -7,8 +7,10 @@
   "main": "index.js",
   "type": "commonjs",
   "dependencies": {
-    "firebase-functions": "^5.0.0",
-    "@anthropic-ai/sdk": "^0.70.0"
+    "@anthropic-ai/sdk": "^0.70.0",
+    "@anthropic-ai/vertex-sdk": "^0.19.8",
+    "@google/genai": "^2.22.0",
+    "firebase-functions": "^5.0.0"
   },
   "private": true
 }

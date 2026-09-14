@@ -321,7 +321,9 @@ async function preguntar() {
   cab.appendChild(el("span", "tag" + (r.abstencion ? (r.abstencionPorRol ? " mal" : " esp") : " ok"),
     r.abstencion ? (r.abstencionPorRol ? "Consulta no permitida para este rol" : "Sin consulta aplicable")
                  : `${r.consulta.id} · ${r.consulta.titulo}`));
-  if (!r.abstencion) cab.appendChild(el("span", "note", `${r.filas.length} filas · ${r.ms} ms · selección ${r.via}`));
+  if (!r.abstencion) cab.appendChild(el("span", "note",
+    `${r.filas.length} filas · ${r.ms} ms · selección ${r.via}` +
+    (r.redactadoPor ? ` · redacta ${r.redactadoPor}` : "")));
   caja.appendChild(cab);
 
   const p = el("p", "texto", r.texto);
@@ -361,6 +363,23 @@ async function preguntar() {
     const pre = el("pre", null, r.consulta.sparql);
     sq.appendChild(pre);
     caja.appendChild(sq);
+  }
+
+  /* Con las dos redacciones sobre la misma pregunta, se ofrecen las dos. Es lo
+     que convierte la pantalla en un instrumento de comparación y no en una
+     demostración: cualquiera puede ver si el modelo añadió algo que la
+     plantilla, que solo sabe leer filas, no dice. */
+  if (!r.abstencion && r.textoDeterminista) {
+    const d = el("details");
+    d.appendChild(el("summary", null, "Comparar con la redacción determinista (sin modelo)"));
+    const p2 = el("p", "texto");
+    p2.style.fontSize = "15px";
+    p2.textContent = r.textoDeterminista;
+    d.appendChild(p2);
+    d.appendChild(el("p", "note",
+      "Misma consulta y mismas filas, redactadas por la plantilla escrita a mano. " +
+      "Si la de arriba afirma algo que esta no dice, el modelo se salió de los datos."));
+    caja.appendChild(d);
   }
 
   const tz = el("div", "traza");

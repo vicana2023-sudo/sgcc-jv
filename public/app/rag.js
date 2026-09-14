@@ -373,11 +373,73 @@ export async function responder(g, indices, pregunta, opciones = {}) {
     detalle: red.sinDatos ? "Sin filas: el sistema declara que no tiene el dato"
                           : `${red.citados.length} individuos citados como evidencia` });
 
+  /* ------------------------ la «G» de GraphRAG ---------------------------
+     Hasta aquí hay recuperación sobre el grafo y una redacción determinista:
+     un `switch` con una plantilla escrita a mano por consulta. Eso es sólido y
+     auditable, pero NO es generación: ningún modelo escribe.
+
+     Con el agente disponible se añade el paso que faltaba. El modelo recibe
+     SOLO las filas que devolvió el grafo y la orden de no salirse de ellas; no
+     ve la ontología, ni el grafo, ni tiene forma de consultar nada. Y la
+     redacción determinista NO se descarta: se conserva en `textoDeterminista`,
+     porque tener las dos lado a lado sobre la misma pregunta es lo que permite
+     medir cuánto aporta el modelo y si alguna vez añadió algo que no estaba en
+     las filas. Esa comparación es el experimento, no un detalle.            */
+  let texto = red.texto;
+  let textoDeterminista = null;
+  let redactadoPor = "plantilla determinista";
+
+  if (opciones.usarModelo && opciones.endpoint && res.filas.length) {
+    try {
+      const r = await redactarConModelo(opciones.endpoint, pregunta, elegida, res.filas);
+      if (r && r.respuesta) {
+        textoDeterminista = red.texto;
+        texto = r.respuesta;
+        redactadoPor = `${r.proveedor || "modelo"} · ${r.modelo || ""}`.trim();
+        traza.push({ paso: "Redactar",
+          detalle: `${redactadoPor}, sobre las ${res.filas.length} filas y nada más` +
+                   (r.suficiente === false ? ". El modelo declara que las filas no bastan" : "") });
+      }
+    } catch (e) {
+      /* Que falle el redactor no puede dejar al usuario sin respuesta: ya hay
+         una, fundamentada, escrita por la plantilla. */
+      traza.push({ paso: "Redactar", detalle: `Falló (${e.message}); queda la redacción determinista` });
+    }
+  }
+
   return {
     abstencion: false, consulta: elegida, params, filas: res.filas, columnas: res.columnas,
-    texto: red.texto, sinDatos: red.sinDatos, citados: red.citados, traza, via,
+    texto, textoDeterminista, redactadoPor,
+    sinDatos: red.sinDatos, citados: red.citados, traza, via,
     ms: Math.round(performance.now() - t0),
   };
+}
+
+/* ---------------- redacción con modelo, sobre las filas y nada más --------
+   Se le manda la pregunta, qué consulta se ejecutó y las filas. Nada más. */
+async function redactarConModelo(endpoint, pregunta, consulta, filas) {
+  const r = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tarea: "redactar",
+      pregunta,
+      consulta: { id: consulta.id, titulo: consulta.titulo },
+      /* Tope de filas: además del coste, con cien filas en el prompt comprobar
+         a ojo que la respuesta no inventó nada deja de ser posible, y esa
+         comprobación es justamente el aporte de la tesis. */
+      filas: filas.slice(0, 40).map((f) => {
+        const { _iri, ...resto } = f;
+        return resto;
+      }),
+    }),
+  });
+  if (!r.ok) {
+    let detalle = "estado " + r.status;
+    try { const j = await r.json(); if (j.error) detalle = j.error; } catch (e) {}
+    throw new Error(detalle);
+  }
+  return await r.json();
 }
 
 /* ------------------- selección con modelo (función servidor) -------------- */
