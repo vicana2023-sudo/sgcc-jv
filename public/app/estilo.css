@@ -153,6 +153,14 @@ body:not(.sin-sesion) .puerta{display:none !important;}
   box-shadow:none;}
 .usuario button:hover:not(:disabled){background:var(--dark-3);color:var(--sobre-dark);}
 
+/* Distintivo de ambiente. Solo aparece fuera de producción, y tiene que verse
+   de reojo: la mitad de los sustos de «esto no funciona» son alguien mirando
+   el ambiente equivocado. */
+.cinta{display:inline-block;background:var(--naranja);color:#fff;
+  font-size:11px;font-weight:700;letter-spacing:.12em;
+  padding:2px var(--e2);border-radius:var(--r1);}
+.puerta-caja .cinta{margin-bottom:var(--e3);}
+
 /* ============================== 3. Cabecera ============================== */
 .placard{
   background:var(--dark);color:var(--sobre-dark);

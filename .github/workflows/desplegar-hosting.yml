@@ -1,35 +1,45 @@
-# Despliegue continuo en Firebase Hosting.
+# Despliegue continuo en Firebase Hosting, con dos ambientes.
 #
-# Cada cambio que llegue a «main» y toque el sitio se verifica y, si pasa, se
-# publica solo. No hay paso de compilación: el MVP es estático, así que lo que
-# está en public/ es exactamente lo que se sirve.
+#   push a main        →  CALIDAD   (sgcc-jv-qa.web.app)
+#   etiqueta v*        →  PRODUCCIÓN (sgcc-jv.web.app)
+#   ejecución manual   →  el ambiente que se elija
+#
+# Producción deja de publicarse sola a propósito. Antes cualquier empujón a main
+# iba derecho al sitio que se le enseña al jurado; ahora para llegar allí hay
+# que etiquetar una versión, que es un acto deliberado y deja constancia de qué
+# commit exacto está publicado.
 #
 # Se despliega SOLO hosting, nunca functions. La función del modelo de lenguaje
-# necesita el plan Blaze y el secreto ANTHROPIC_API_KEY; desplegarla desde aquí
-# fallaría en el plan gratuito. Cuando llegue el momento se despliega a mano,
-# como dice LEEME_DESPLIEGUE.md.
+# necesita el plan Blaze y el secreto ANTHROPIC_API_KEY; se despliega a mano.
 #
-# Requiere un secreto del repositorio: FIREBASE_SERVICE_ACCOUNT_SGCC_JV, con el
-# JSON de una cuenta de servicio con permiso de «Firebase Hosting Admin».
-# Lo crea `firebase init hosting:github`; ver LEEME_DESPLIEGUE.md.
+# Secretos del repositorio:
+#   FIREBASE_SERVICE_ACCOUNT_SGCC_JV      cuenta de servicio de producción
+#   FIREBASE_SERVICE_ACCOUNT_SGCC_JV_QA   cuenta de servicio de calidad
+# Los crea `firebase init hosting:github`; ver LEEME_DESPLIEGUE.md.
 
 name: Desplegar en Firebase Hosting
 
+# Sin filtro de rutas, y es deliberado: GitHub evalúa `paths` también contra las
+# etiquetas, y el empujón de una etiqueta sobre un commit ya existente no trae
+# archivos que comparar, así que el despliegue a producción no llegaría a
+# dispararse nunca. Un despliegue a calidad cuesta cuarenta segundos; que se
+# lance de más es mejor que que no se lance cuando toca.
 on:
   push:
     branches: [main]
-    # Un cambio en el README no merece un despliegue.
-    paths:
-      - "public/**"
-      - "firebase.json"
-      - ".firebaserc"
-      - ".github/workflows/desplegar-hosting.yml"
-  workflow_dispatch:        # para republicar a mano sin tocar el código
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "A qué ambiente publicar"
+        type: choice
+        options: [calidad, produccion]
+        default: calidad
 
 # Si se empujan dos cambios seguidos, gana el último: no tiene sentido publicar
 # una versión que ya quedó vieja mientras sube.
 concurrency:
-  group: hosting-produccion
+  group: hosting-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -86,17 +96,70 @@ jobs:
       - name: Las vistas, las pestañas y los roles concuerdan
         run: node .github/scripts/comprobar-vistas.mjs
 
-  desplegar:
-    name: Publicar en Hosting
+  decidir:
+    name: A qué ambiente
     needs: verificar
+    runs-on: ubuntu-latest
+    outputs:
+      ambiente: ${{ steps.e.outputs.ambiente }}
+      proyecto: ${{ steps.e.outputs.proyecto }}
+      hay_secreto: ${{ steps.e.outputs.hay_secreto }}
+    steps:
+      - id: e
+        env:
+          # Comparar contra vacío es seguro: el valor nunca se imprime, y
+          # GitHub enmascara los secretos en el registro de todas formas.
+          SEC_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SGCC_JV != '' }}
+          SEC_QA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SGCC_JV_QA != '' }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            amb="${{ inputs.ambiente }}"
+          elif [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
+            amb="produccion"
+          else
+            amb="calidad"
+          fi
+          echo "ambiente=$amb" >> $GITHUB_OUTPUT
+          if [ "$amb" = "produccion" ]; then
+            echo "proyecto=sgcc-jv" >> $GITHUB_OUTPUT
+          else
+            echo "proyecto=sgcc-jv-qa" >> $GITHUB_OUTPUT
+          fi
+          # Sin el secreto del ambiente no se puede publicar. Se avisa y se
+          # omite, en vez de fallar: un aspa roja sin explicación hace perder
+          # más tiempo que un aviso que dice exactamente qué falta.
+          if [ "$amb" = "produccion" ]; then hay="$SEC_PROD"; else hay="$SEC_QA"; fi
+          echo "hay_secreto=$hay" >> $GITHUB_OUTPUT
+          if [ "$hay" != "true" ]; then
+            nombre="FIREBASE_SERVICE_ACCOUNT_SGCC_JV"
+            [ "$amb" = "calidad" ] && nombre="${nombre}_QA"
+            {
+              echo "### Publicación omitida"
+              echo "Falta el secreto \`$nombre\` para el ambiente **$amb**."
+              echo "Se crea con \`firebase init hosting:github\`; ver LEEME_DESPLIEGUE.md."
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "Publicando en $amb (secreto presente: $hay)"
+
+  desplegar:
+    name: Publicar
+    needs: decidir
+    if: needs.decidir.outputs.hay_secreto == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Desplegar al canal en producción
+      - name: Desplegar al canal en producción del proyecto
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SGCC_JV }}
-          projectId: sgcc-jv
+          firebaseServiceAccount: ${{ needs.decidir.outputs.ambiente == 'produccion'
+            && secrets.FIREBASE_SERVICE_ACCOUNT_SGCC_JV
+            || secrets.FIREBASE_SERVICE_ACCOUNT_SGCC_JV_QA }}
+          projectId: ${{ needs.decidir.outputs.proyecto }}
           channelId: live
+
+      - name: Decir dónde quedó
+        run: |
+          echo "### Publicado en ${{ needs.decidir.outputs.ambiente }}" >> $GITHUB_STEP_SUMMARY
+          echo "https://${{ needs.decidir.outputs.proyecto }}.web.app" >> $GITHUB_STEP_SUMMARY

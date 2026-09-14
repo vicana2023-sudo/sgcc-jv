@@ -15,6 +15,7 @@ import { ROLES, rolActual, fijarRol, alCambiarRol, vistasPermitidas, puedeVer,
          consultasPermitidas, haySesion } from "./auth.js";
 import { crearValidacion } from "./validacion.js";
 import { arrancarSesion, entrar, salir, mensajeDeError } from "./sesion.js";
+import { ETIQUETA_AMBIENTE } from "./firebase-config.js";
 import { ICO, botonIcono, cambiarIcono } from "./iconos.js";
 import { crearRed } from "./red.js";
 
@@ -55,6 +56,16 @@ const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); }
    Las declaraciones de función se elevan, así que se pueden llamar aquí
    arriba; el módulo se ejecuta con el DOM ya construido porque
    <script type="module"> es diferido.                                       */
+/* El distintivo de ambiente, antes que nada: si alguien se equivoca de sitio,
+   que lo vea en la propia pantalla de acceso y no después de reportar. */
+if (ETIQUETA_AMBIENTE) {
+  for (const id of ["#ambiente", "#ambiente-puerta"]) {
+    const e = $(id);
+    if (e) { e.textContent = ETIQUETA_AMBIENTE; e.classList.remove("hide"); }
+  }
+  document.title = `[${ETIQUETA_AMBIENTE}] ` + document.title;
+}
+
 aplicarPanelRol();
 prepararPuerta();
 

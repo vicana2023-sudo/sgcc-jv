@@ -10,7 +10,7 @@
 <!-- La versión del enlace fuerza a saltarse la caché. firebase.json sirve el CSS
      con max-age=3600: sin esto, un cambio de estilo puede tardar una hora en
      verse, y parece que no se hubiera desplegado. Súbala al tocar la hoja. -->
-<link rel="stylesheet" href="app/estilo.css?v=4">
+<link rel="stylesheet" href="app/estilo.css?v=5">
 </head>
 <!-- La clase se quita al confirmarse la sesión. Nace puesta a propósito: si el
      JavaScript no llegara a cargar, lo que queda en pantalla es la puerta, no
@@ -21,6 +21,7 @@
 <div id="puerta" class="puerta">
   <form class="puerta-caja" id="f-login" autocomplete="on">
     <span class="code">ETUL 4</span>
+    <span class="cinta hide" id="ambiente-puerta"></span>
     <h1 class="serif puerta-h1">Acceso al sistema</h1>
     <p class="note">
       Entre con la cuenta que le asignó el área. El rol con el que verá el
@@ -48,6 +49,7 @@
 
 <header class="placard">
   <span class="code">ETUL 4</span>
+  <span class="cinta hide" id="ambiente"></span>
   <span class="meta">Grafo de conocimiento · mantenimiento y programación de flota</span>
   <span class="meta usuario" id="usuario">
     <span id="u-correo"></span>
