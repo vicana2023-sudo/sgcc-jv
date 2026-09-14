@@ -872,7 +872,7 @@ function pintarSesion() {
   bv.onclick = () => {
     errd.classList.add("hide");
     if (!vozEnt.disponible) {
-      errd.textContent = "Este navegador no reconoce la voz. Escriba la respuesta abajo.";
+      errd.textContent = "Este navegador no reconoce la voz. Use Chrome o Edge, o escriba la respuesta en el recuadro de abajo.";
       errd.classList.remove("hide");
       return;
     }
@@ -892,30 +892,38 @@ function pintarSesion() {
   mic.appendChild(micPie);
   caja.appendChild(mic);
 
-  /* -------------------------- escribir, que es enviar --------------------
-     No hay botón «Añadir turno»: la caja de texto ES el turno y enviar lo
-     añade. Separados, obligaban a escribir y después acordarse de pulsar otra
-     cosa, que es justo el paso que se olvida.                               */
-  const barEnv = el("div", "row envio");
-  const ta = el("textarea"); ta.id = "e-texto"; ta.rows = 2;
-  ta.placeholder = "O escriba lo que dijo el experto y pulse Enter";
-  ta.style.flex = "1";
-  const enviar = () => {
-    const v = ta.value.trim();
-    if (!v) return;
-    ta.value = "";
-    anadirTurno(v, "experto", "escrito");
-  };
-  /* Enter envía, Mayúsculas+Enter hace párrafo: lo que espera cualquiera que
-     haya usado un chat. */
-  ta.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
-  });
-  const bEnv = botonIcono("flecha", "Enviar");
-  bEnv.onclick = enviar;
-  barEnv.appendChild(ta);
-  barEnv.appendChild(bEnv);
-  caja.appendChild(barEnv);
+  /* -------------------------- la salida de emergencia ---------------------
+     La caja de texto y el botón «Enviar» se retiraron: grabar ya hace esas dos
+     cosas, y tener las dos vías a la vista sobraba.
+
+     Se conserva SOLO donde el navegador no reconoce voz —Firefox y Safari no
+     tienen la Web Speech API—, porque si no, en esos navegadores la entrevista
+     quedaría sin ninguna forma de registrar una respuesta. Donde hay micrófono,
+     esto no aparece. Lo ya registrado se corrige igual pulsando sobre la
+     burbuja, que sigue siendo editable.                                      */
+  if (!vozEnt.disponible) {
+    caja.appendChild(Object.assign(el("div", "aviso"), { textContent:
+      "Este navegador no reconoce la voz. Use Chrome o Edge para dictar; " +
+      "mientras tanto, escriba aquí lo que responda el experto." }));
+    const barEnv = el("div", "row envio");
+    const ta = el("textarea"); ta.id = "e-texto"; ta.rows = 2;
+    ta.placeholder = "Lo que dijo el experto";
+    ta.style.flex = "1";
+    const enviar = () => {
+      const v = ta.value.trim();
+      if (!v) return;
+      ta.value = "";
+      anadirTurno(v, "experto", "escrito");
+    };
+    ta.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
+    });
+    const bEnv = botonIcono("flecha", "Registrar");
+    bEnv.onclick = enviar;
+    barEnv.appendChild(ta);
+    barEnv.appendChild(bEnv);
+    caja.appendChild(barEnv);
+  }
 
   /* ------------------------------ qué sigue ------------------------------ */
   const bar2 = el("div", "row");
@@ -960,7 +968,7 @@ function pintarSesion() {
     caja.appendChild(el("p", "note",
       turnosActuales().length
         ? "Para formalizar hace falta una respuesta del experto; por ahora solo hay turnos del entrevistador."
-        : "Para formalizar hace falta que el experto responda, por voz o por escrito."));
+        : "Para formalizar hace falta que el experto responda: toque el micrófono y deje que hable."));
   }
 
   c.appendChild(caja);
