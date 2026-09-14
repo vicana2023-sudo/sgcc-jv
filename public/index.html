@@ -10,7 +10,7 @@
 <!-- La versión del enlace fuerza a saltarse la caché. firebase.json sirve el CSS
      con max-age=3600: sin esto, un cambio de estilo puede tardar una hora en
      verse, y parece que no se hubiera desplegado. Súbala al tocar la hoja. -->
-<link rel="stylesheet" href="app/estilo.css?v=3">
+<link rel="stylesheet" href="app/estilo.css?v=4">
 </head>
 <!-- La clase se quita al confirmarse la sesión. Nace puesta a propósito: si el
      JavaScript no llegara a cargar, lo que queda en pantalla es la puerta, no
@@ -65,6 +65,7 @@
 <nav class="tabs" id="tabs" role="tablist">
   <button role="tab" data-v="preguntar" class="on hide">Preguntar</button>
   <button role="tab" data-v="explorar" class="hide">Explorar el grafo</button>
+  <button role="tab" data-v="red" class="hide">Red de entidades</button>
   <button role="tab" data-v="consultas" class="hide">Consultas</button>
   <button role="tab" data-v="entrevista" class="hide">Entrevista por voz</button>
   <button role="tab" data-v="reportar" class="hide">Reportar falla</button>
@@ -118,6 +119,17 @@
       <div id="lista-indiv" class="lista"></div>
     </div>
     <div id="detalle"></div>
+  </section>
+
+  <!-- ═══════════════ RED ═══════════════ -->
+  <section id="v-red" class="hide">
+    <h1 class="serif h1">Red de entidades</h1>
+    <p class="note ancho">
+      El mismo grafo, dibujado como grafo. Cada punto es un individuo y cada línea una relación
+      declarada en la ontología. Empiece por una entidad y ábrala por saltos: ver los 249 individuos
+      a la vez queda vistoso y no dice nada.
+    </p>
+    <div id="red-app"></div>
   </section>
 
   <!-- ═══════════════ CONSULTAS ═══════════════ -->

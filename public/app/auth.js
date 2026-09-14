@@ -30,6 +30,7 @@
 export const VISTAS = {
   preguntar:  "Preguntar",
   explorar:   "Explorar el grafo",
+  red:        "Red de entidades",
   consultas:  "Consultas",
   entrevista: "Entrevista por voz",
   reportar:   "Reportar falla",
@@ -97,7 +98,9 @@ export const CONSULTAS_POR_ROL = {
   "jefe-operaciones":   ["Q02", "Q11", "Q15", "Q16", "Q17", "Q19"],
   "programador":        ["Q01", "Q02", "Q06", "Q13", "Q15", "Q16", "Q17", "Q19"],
   "tecnico":            ["Q01", "Q02", "Q04", "Q06", "Q13"],
-  "conductor":          ["Q02", "Q16"],
+  /* Ninguna. El conductor no consulta el grafo: lo alimenta. Darle consultas
+     sería inventarle una tarea que en el patio no hace. */
+  "conductor":          [],
   "investigador":       "*",
 };
 
@@ -105,12 +108,15 @@ export const CONSULTAS_POR_ROL = {
    «acerca» se añade siempre: la advertencia sobre los datos ficticios y la
    nota de privacidad tienen que estar al alcance de cualquiera.               */
 export const PANEL_POR_ROL = {
-  "jefe-mantenimiento": ["preguntar", "explorar", "consultas", "entrevista", "revision", "validacion"],
-  "jefe-operaciones":   ["preguntar", "explorar", "consultas", "entrevista", "validacion"],
-  "programador":        ["preguntar", "explorar", "consultas", "entrevista", "validacion"],
+  "jefe-mantenimiento": ["preguntar", "explorar", "red", "consultas", "entrevista", "revision", "validacion"],
+  "jefe-operaciones":   ["preguntar", "explorar", "red", "consultas", "entrevista", "validacion"],
+  "programador":        ["preguntar", "explorar", "red", "consultas", "entrevista", "validacion"],
   "tecnico":            ["preguntar", "consultas", "entrevista", "reportar", "validacion"],
-  "conductor":          ["preguntar", "reportar"],
-  "investigador":       ["preguntar", "explorar", "consultas", "entrevista", "reportar", "revision", "validacion"],
+  /* Dos módulos y se acabó: reportar la falla y «Acerca de», que lleva la
+     advertencia sobre los datos ficticios y debe estar al alcance de cualquiera.
+     Antes tenía también «Preguntar»; se le quitó porque no es su trabajo. */
+  "conductor":          ["reportar"],
+  "investigador":       ["preguntar", "explorar", "red", "consultas", "entrevista", "reportar", "revision", "validacion"],
 };
 
 /* ------------------------------- estado actual ----------------------------

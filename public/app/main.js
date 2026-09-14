@@ -15,6 +15,8 @@ import { ROLES, rolActual, fijarRol, alCambiarRol, vistasPermitidas, puedeVer,
          consultasPermitidas, haySesion } from "./auth.js";
 import { crearValidacion } from "./validacion.js";
 import { arrancarSesion, entrar, salir, mensajeDeError } from "./sesion.js";
+import { ICO, botonIcono, cambiarIcono } from "./iconos.js";
+import { crearRed } from "./red.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -24,7 +26,7 @@ const nz = (n, d = 3) => String(n).padStart(d, "0");
 const hoy = () => new Date().toISOString().slice(0, 10);
 const ahora = () => new Date().toISOString().slice(0, 16).replace("T", " ");
 
-let G = null, IX = null, BANCO = null, HIST = null, VAL = null;
+let G = null, IX = null, BANCO = null, HIST = null, VAL = null, RED = null;
 const ENDPOINT_MODELO = "/api/agente";     // función servidor, si está desplegada
 const CLAVE_PROP = "etul4_propuestas_v1";
 const CLAVE_SES = "etul4_entrevista_v1";
@@ -76,6 +78,9 @@ async function arrancar() {
     pintarReportar();
     pintarRevision();
     VAL = crearValidacion($("#validacion-app"), HIST, { rol: rolActual, irA, descargar });
+    RED = crearRed($("#red-app"), G, {
+      alAbrirIndividuo: (iri) => { irA("explorar"); mostrarDetalle(iri); },
+    });
     /* aplicarRol pinta lo que depende del rol: ejemplos, catálogo de consultas,
        entrevista y validación. Llamarlas antes sería pintarlas dos veces. */
     aplicarRol();
@@ -100,6 +105,10 @@ $("#tabs").addEventListener("click", (e) => {
   $$("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
   $$("main > section").forEach((s) => s.classList.toggle("hide", s.id !== "v-" + b.dataset.v));
   window.scrollTo(0, 0);
+  /* La red se monta al abrirse, no al arrancar: un <canvas> dentro de una
+     sección oculta mide cero de ancho, y el dibujo saldría del tamaño de un
+     sello. */
+  if (b.dataset.v === "red" && RED) RED.pintar();
 });
 function irA(vista) { const b = $(`#tabs button[data-v="${vista}"]`); if (b) b.click(); }
 
@@ -477,6 +486,13 @@ function mostrarDetalle(iri) {
   t.appendChild(tb);
   caja.appendChild(t);
 
+  if (puedeVer("red") && RED) {
+    const bRed = botonIcono("grafo", "Ver en la red", "g sm");
+    bRed.style.marginBottom = "var(--e3)";
+    bRed.onclick = () => { RED.centrarEn(iri); irA("red"); RED.pintar(); };
+    caja.appendChild(bRed);
+  }
+
   const entrantes = (G.porObjeto.get(iri) || []).filter(([s, p]) => p !== NS.rdf + "type" && !s.startsWith("_:"));
   if (entrantes.length) {
     const d = el("details");
@@ -648,12 +664,32 @@ function guardarSesion() {
   escribir(CLAVE_SES, { ...ENT, cola: ENT.cola.map((p) => p.id) });
 }
 
+const cronoEnt = crearCronometro((t) => { const e = $("#e-tiempo"); if (e) e.textContent = t; });
+
 const vozEnt = crearVoz({
   onParcial: (t) => { const i = $("#e-interim"); if (i) i.textContent = t; },
   onFinal: (t) => { anadirTurno(t, vozEnt.quien || "experto", "voz"); },
-  onFin: () => { const b = $("#e-voz"); if (b) { b.classList.remove("rec"); b.textContent = "Grabar al experto"; } const i = $("#e-interim"); if (i) i.textContent = ""; },
-  onError: (m) => { const e = $("#e-err"); if (e) { e.textContent = m; e.classList.remove("hide"); } },
+  onFin: () => { cronoEnt.parar(); pintarEstadoGrabacion(false); const i = $("#e-interim"); if (i) i.textContent = ""; },
+  onError: (m) => { cronoEnt.parar(); pintarEstadoGrabacion(false); const e = $("#e-err"); if (e) { e.textContent = m; e.classList.remove("hide"); } },
 });
+
+/* Testigo de grabación con punto rojo y cronómetro. En una entrevista de
+   cuarenta minutos, saber si el reconocedor sigue vivo importa más que el
+   botón: el navegador corta la escucha solo, y descubrirlo al final significa
+   haber perdido la respuesta. */
+function pintarEstadoGrabacion(grabando) {
+  const b = $("#e-voz");
+  if (b) {
+    b.classList.toggle("rec", grabando);
+    cambiarIcono(b, grabando ? "detener" : "microfono",
+      grabando ? "Detener" : "Grabar al experto");
+  }
+  const t = $("#e-testigo");
+  if (t) {
+    t.classList.toggle("hide", !grabando);
+    if (!grabando) { const e = $("#e-tiempo"); if (e) e.textContent = ""; }
+  }
+}
 
 function turnosActuales() {
   const p = ENT.cola[ENT.idx];
@@ -711,15 +747,23 @@ function pintarSesion() {
 
   const bar = el("div", "row");
   bar.style.marginTop = "12px";
-  const bv = el("button", "g", "Grabar al experto"); bv.id = "e-voz";
+  const bv = botonIcono("microfono", "Grabar al experto", "g"); bv.id = "e-voz";
   bv.onclick = () => {
     if (!vozEnt.disponible) { errd.textContent = "Este navegador no tiene reconocimiento de voz. Escriba la respuesta."; errd.classList.remove("hide"); return; }
     if (vozEnt.activo()) { vozEnt.detener(); return; }
     vozEnt.quien = "experto";
-    bv.classList.add("rec"); bv.innerHTML = '<span class="dot"></span>Grabando';
+    pintarEstadoGrabacion(true);
+    cronoEnt.arrancar();
     vozEnt.iniciar();
   };
   bar.appendChild(bv);
+
+  const testigo = el("span", "testigo hide"); testigo.id = "e-testigo";
+  testigo.innerHTML = ICO.grabando;
+  testigo.appendChild(el("span", null, "grabando"));
+  testigo.appendChild(Object.assign(el("span", "mic-tiempo"), { id: "e-tiempo" }));
+  bar.appendChild(testigo);
+
   const brep = el("button", "g", "Repregunta del banco");
   brep.onclick = () => anadirTurno(p.repregunta, "entrevistador", "escrito");
   bar.appendChild(brep);
@@ -844,12 +888,39 @@ function pintarCierreEntrevista() {
 }
 
 /* ================================= REPORTAR =============================== */
+/* Cronómetro compartido por los dos micrófonos. Ver correr los segundos es la
+   única señal fiable de que el reconocedor sigue escuchando: el navegador corta
+   la escucha solo y, sin esto, el usuario se queda hablándole a nadie. */
+function crearCronometro(alPintar) {
+  let t0 = 0, id = null;
+  return {
+    arrancar() { t0 = Date.now(); alPintar("0:00"); id = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      alPintar(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
+    }, 1000); },
+    parar() { clearInterval(id); id = null; },
+  };
+}
+
+const cronoRep = crearCronometro((t) => { const e = $("#r-tiempo"); if (e) e.textContent = t; });
+
 const vozRep = crearVoz({
   onParcial: (t) => { const i = $("#r-interim"); if (i) i.textContent = t; },
   onFinal: (t) => { const ta = $("#r-texto"); ta.value = (ta.value + " " + t).trim(); const i = $("#r-interim"); if (i) i.textContent = ""; },
-  onFin: () => { const b = $("#r-voz"); if (b) { b.classList.remove("rec"); b.textContent = "Dictar"; } },
-  onError: (m) => alert(m),
+  onFin: () => { cronoRep.parar(); pintarEstadoMic(false); },
+  onError: (m) => { cronoRep.parar(); pintarEstadoMic(false); const e = $("#r-err"); if (e) { e.textContent = m; e.classList.remove("hide"); } },
 });
+
+/* El micrófono es un solo control que alterna. Dos botones —uno para empezar y
+   otro para parar— obligan a mirar cuál está activo; uno solo, no. */
+function pintarEstadoMic(grabando) {
+  const b = $("#r-voz"); if (!b) return;
+  b.classList.toggle("rec", grabando);
+  b.innerHTML = grabando ? ICO.detener : ICO.microfono;
+  const pie = $("#r-mic-pie");
+  if (pie) pie.textContent = grabando ? "Escuchando… toque para terminar" : "Toque para contar qué pasó";
+  const t = $("#r-tiempo"); if (t && !grabando) t.textContent = "";
+}
 
 function pintarReportar() {
   const c = $("#reportar-app");
@@ -873,23 +944,47 @@ function pintarReportar() {
     .forEach(([t, i]) => { const d = el("div"); d.appendChild(el("label", "lbl", t)); d.appendChild(i); g.appendChild(d); });
   caja.appendChild(g);
 
-  caja.appendChild(el("label", "lbl", "Qué pasó, en sus palabras"));
   const ta = el("textarea"); ta.id = "r-texto";
   ta.placeholder = "En la bajada de la Panamericana el freno no respondió como debe…";
-  caja.appendChild(ta);
   const inter = el("div", "interim"); inter.id = "r-interim";
+
+  const errd = el("div", "err hide"); errd.id = "r-err";
+  caja.appendChild(errd);
+
+  /* El micrófono, como control principal y no como un botón más de la fila.
+     El conductor reporta de pie, en el patio, a veces con guantes: un objetivo
+     grande y redondo se acierta sin mirar, y un rótulo de 90 píxeles no. */
+  const mic = el("div", "mic-zona");
+  const bv = el("button", "mic-boton"); bv.id = "r-voz";
+  bv.type = "button";
+  bv.setAttribute("aria-label", "Dictar lo que pasó");
+  bv.innerHTML = ICO.microfono;
+  bv.onclick = () => {
+    errd.classList.add("hide");
+    if (!vozRep.disponible) {
+      errd.textContent = "Este navegador no reconoce la voz. Use Chrome o Edge, o escriba el texto abajo.";
+      errd.classList.remove("hide");
+      return;
+    }
+    if (vozRep.activo()) { vozRep.detener(); return; }
+    pintarEstadoMic(true);
+    cronoRep.arrancar();
+    vozRep.iniciar();
+  };
+  mic.appendChild(bv);
+  const micPie = el("div", "mic-pie");
+  micPie.appendChild(Object.assign(el("span", null, "Toque para contar qué pasó"), { id: "r-mic-pie" }));
+  micPie.appendChild(Object.assign(el("span", "mic-tiempo"), { id: "r-tiempo" }));
+  mic.appendChild(micPie);
+  caja.appendChild(mic);
   caja.appendChild(inter);
+
+  caja.appendChild(el("label", "lbl", "Qué pasó, en sus palabras"));
+  caja.appendChild(ta);
 
   const bar = el("div", "row");
   bar.style.marginTop = "12px";
-  const bv = el("button", "g", "Dictar"); bv.id = "r-voz";
-  bv.onclick = () => {
-    if (!vozRep.disponible) { alert("Este navegador no tiene reconocimiento de voz. Use Chrome o Edge."); return; }
-    if (vozRep.activo()) { vozRep.detener(); return; }
-    bv.classList.add("rec"); bv.innerHTML = '<span class="dot"></span>Escuchando';
-    vozRep.iniciar();
-  };
-  const be = el("button", null, "Enviar reporte");
+  const be = botonIcono("reporte", "Enviar reporte");
   be.onclick = () => {
     const texto = ta.value.trim();
     if (!texto) { alert("Escriba o dicte qué pasó."); return; }
@@ -904,22 +999,91 @@ function pintarReportar() {
     escribir(CLAVE_PROP, [...props, ...props2]);
     ta.value = "";
     pintarRevision();
-    const av = el("div", "aviso");
-    av.innerHTML = `<strong>Reporte registrado.</strong> Se generaron ${props2.length} hechos candidatos
-      a partir del texto libre. Están en la bandeja de revisión, no en el grafo.`;
-    const b = el("button", "g", "Ver la bandeja");
-    b.style.marginTop = "10px";
-    b.onclick = () => irA("revision");
-    av.appendChild(b);
-    caja.parentNode.appendChild(av);
-    setTimeout(() => av.remove(), 9000);
+    pintarFlujoReporte(caja.parentNode, props2, selV.value);
   };
-  bar.appendChild(bv); bar.appendChild(be);
+  bar.appendChild(be);
   caja.appendChild(bar);
   caja.appendChild(el("p", "note",
     "Lo que elige en las listas es un dato confirmado por usted. Lo que escribe en texto libre lo " +
     "interpreta el sistema, y por eso pasa por revisión antes de entrar al grafo."));
   c.appendChild(caja);
+}
+
+/* ------------------------- qué pasa con el reporte ------------------------
+   El conductor entrega el reporte y deja de verlo. Eso, en el patio, se traduce
+   en no volver a reportar: si no se sabe adónde fue, parece que no sirvió.
+
+   Este panel dibuja la cadena completa y marca dónde queda ahora, quién la
+   recoge y qué pasa con cada rama. Es además la trazabilidad de la tesis puesta
+   en pantalla: el mismo recorrido que después reconstruyen Q28 y Q29.        */
+function pintarFlujoReporte(donde, propuestas, vehiculo) {
+  const previo = $("#flujo-reporte");
+  if (previo) previo.remove();
+
+  const extraidos = propuestas.filter((p) => p.estado === "ExtPropuesta");
+  const confirmados = propuestas.filter((p) => p.estado === "Confirmado");
+  const veh = G.individuos(E("Vehiculo")).find((v) => corto(v) === vehiculo);
+  const padron = veh ? (G.lit(veh, E("codigoInterno")) || corto(veh)) : vehiculo;
+
+  const caja = el("div", "card flujo");
+  caja.id = "flujo-reporte";
+  caja.appendChild(el("h2", "serif h2", "Qué pasa ahora con su reporte"));
+  caja.appendChild(el("p", "note",
+    `Unidad ${padron} · ${ahora()}. Guardado en este navegador; en producción iría a Firestore.`));
+
+  const pasos = [
+    { ico: "reporte", rol: "Usted, el conductor", estado: "hecho",
+      titulo: "Reporte registrado",
+      detalle: `${confirmados.length} dato(s) confirmados por usted en las listas, con confianza 1. ` +
+               `Esos no se interpretan: entran tal cual.` },
+    { ico: "ondas", rol: "Extractor automático", estado: "hecho",
+      titulo: `${extraidos.length} hecho(s) candidatos del texto libre`,
+      detalle: extraidos.length
+        ? `El sistema interpretó lo que dictó y propuso: ${[...new Set(extraidos.map((p) => p.predicado))].join(", ")}. ` +
+          `Cada uno guarda el trozo exacto de sus palabras que lo sustenta.`
+        : `De lo que dictó no se pudo proponer ningún hecho. No es un error: sin evidencia, no hay hecho.` },
+    { ico: "revisar", rol: "Jefe de mantenimiento", estado: "espera",
+      titulo: "Pendiente de revisión",
+      detalle: `Nadie más puede aceptarlos. Ningún hecho propuesto por una máquina entra al grafo ` +
+               `sin que una persona lo apruebe; es el cuello de botella real del sistema.` },
+    { ico: "grafo", rol: "El grafo", estado: "futuro",
+      titulo: "Lo aceptado se convierte en Falla y, si corresponde, en OrdenTrabajo",
+      detalle: `Lo rechazado no se borra: queda como evidencia de error de extracción, y es lo que ` +
+               `mide la consulta Q24.` },
+  ];
+
+  const lista = el("div", "pasos");
+  pasos.forEach((p, i) => {
+    const d = el("div", "paso " + p.estado);
+    const ic = el("div", "paso-ico");
+    ic.innerHTML = ICO[p.ico] || "";
+    d.appendChild(ic);
+    const cuerpo = el("div", "paso-cuerpo");
+    const cab = el("div", "row");
+    cab.appendChild(el("b", null, p.titulo));
+    cab.appendChild(el("span", "tag" + (p.estado === "hecho" ? " ok" : p.estado === "espera" ? " esp" : ""),
+      p.estado === "hecho" ? "hecho" : p.estado === "espera" ? "en espera" : "después"));
+    cuerpo.appendChild(cab);
+    cuerpo.appendChild(el("div", "note paso-rol", p.rol));
+    cuerpo.appendChild(el("div", "note", p.detalle));
+    d.appendChild(cuerpo);
+    lista.appendChild(d);
+  });
+  caja.appendChild(lista);
+
+  /* El botón a la bandeja solo si el rol puede abrirla: al conductor no se le
+     ofrece una puerta que se le va a cerrar. */
+  if (puedeVer("revision")) {
+    const b = botonIcono("revisar", "Ir a la bandeja de revisión", "g");
+    b.style.marginTop = "var(--e4)";
+    b.onclick = () => irA("revision");
+    caja.appendChild(b);
+  } else {
+    caja.appendChild(el("p", "note",
+      "La bandeja no le corresponde a su rol: la revisa el jefe de mantenimiento."));
+  }
+  donde.appendChild(caja);
+  caja.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /* Extractor local por reglas léxicas. En producción lo hace un modelo de lenguaje

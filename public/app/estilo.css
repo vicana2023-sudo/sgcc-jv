@@ -382,11 +382,98 @@ pre{
 .turn-tx:focus{background:var(--soft);outline:none;box-shadow:0 0 0 2px var(--verde-f);}
 .interim{color:var(--muted);font-style:italic;min-height:26px;
   padding:var(--e1) 0 var(--e1) var(--e4);border-left:3px dotted var(--line);}
+/* Sin texto provisional no hay nada que enmarcar: vacío deja un muñón punteado
+   flotando sobre el formulario. */
+.interim:empty{display:none;}
 /* Excepción a la regla de los tokens: el punto vive siempre sobre el botón rojo
    de grabación, que es rojo en ambos modos. Blanco fijo es lo correcto aquí. */
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;
   margin-right:var(--e2);animation:pulso 1.1s ease-in-out infinite;}
 @keyframes pulso{50%{opacity:.25;}}
+
+/* =========================== 12b. Iconos y voz ==========================
+   El icono acompaña al texto, nunca lo sustituye: hay usuarios que entran dos
+   veces por semana y no van a memorizar pictogramas.                        */
+.ico{width:1.05em;height:1.05em;flex:0 0 auto;vertical-align:-.15em;}
+button.con-ico{display:inline-flex;align-items:center;gap:var(--e2);}
+
+/* El micrófono del conductor: objetivo grande, redondo, acertable de pie y con
+   guantes. Es el control principal de esa pantalla, no un botón más. */
+.mic-zona{display:flex;flex-direction:column;align-items:center;gap:var(--e3);
+  margin:var(--e5) 0 var(--e4);}
+.mic-boton{
+  width:84px;height:84px;border-radius:50%;padding:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--dark);border:1px solid var(--dark);color:var(--sobre-dark);
+  box-shadow:var(--sombra-2);
+  transition:transform .12s ease, background .15s ease, box-shadow .15s ease;
+}
+.mic-boton .ico{width:34px;height:34px;stroke-width:1.5;}
+.mic-boton:hover:not(:disabled){transform:scale(1.04);background:var(--dark-2);}
+.mic-boton:active:not(:disabled){transform:scale(.97);}
+.mic-boton.rec{background:var(--rojo);border-color:var(--rojo);color:#fff;}
+/* Las ondas salen del botón mientras escucha: es la señal de que el
+   reconocedor sigue vivo, que el usuario mira antes que ninguna otra. */
+.mic-boton.rec::before,.mic-boton.rec::after{
+  content:"";position:absolute;width:84px;height:84px;border-radius:50%;
+  border:2px solid var(--rojo);animation:onda 1.8s ease-out infinite;
+}
+.mic-boton.rec::after{animation-delay:.9s;}
+.mic-zona{position:relative;}
+.mic-boton{position:relative;}
+@keyframes onda{
+  0%{transform:scale(1);opacity:.55;}
+  100%{transform:scale(1.85);opacity:0;}
+}
+.mic-pie{display:flex;align-items:center;gap:var(--e2);font-size:13.5px;color:var(--muted);}
+.mic-tiempo{font-family:var(--fuente-mono);font-variant-numeric:tabular-nums;color:var(--rojo);}
+
+/* Testigo de grabación de la entrevista */
+.testigo{display:inline-flex;align-items:center;gap:var(--e2);
+  padding:var(--e1) var(--e3);border-radius:999px;
+  background:var(--rojo-f);border:1px solid var(--rojo);color:var(--rojo-t);
+  font-size:12.5px;font-weight:500;}
+.testigo .ico{width:9px;height:9px;animation:pulso 1.1s ease-in-out infinite;}
+
+/* =========================== 12c. Flujo del reporte ======================
+   Qué pasa después de reportar, quién lo recoge y dónde queda. Sin esto, el
+   conductor entrega y deja de ver: y lo que no se ve, se deja de reportar.  */
+.flujo{border-left:4px solid var(--verde);}
+.pasos{margin-top:var(--e4);}
+.paso{display:flex;gap:var(--e4);padding:var(--e3) 0;position:relative;}
+.paso+.paso{border-top:1px solid var(--line);}
+.paso-ico{flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--soft);border:1px solid var(--line);color:var(--muted);}
+.paso-ico .ico{width:19px;height:19px;}
+.paso.hecho .paso-ico{background:var(--verde-f);border-color:var(--verde);color:var(--verde-t);}
+.paso.espera .paso-ico{background:var(--naranja-f);border-color:var(--naranja);color:var(--naranja-t);}
+.paso-cuerpo{flex:1;min-width:0;}
+.paso-cuerpo b{font-size:14.5px;}
+.paso-rol{margin:2px 0 var(--e1);font-weight:500;}
+
+/* ============================ 12d. Red de entidades ====================== */
+.leyenda{display:flex;flex-wrap:wrap;gap:var(--e2);margin-top:var(--e3);
+  max-height:190px;overflow-y:auto;}
+.ley{display:inline-flex;align-items:center;gap:var(--e2);
+  background:var(--panel);border:1px solid var(--line);color:var(--muted);
+  padding:var(--e1) var(--e3);font-size:12.5px;border-radius:999px;
+  box-shadow:none;font-weight:400;opacity:.5;}
+.ley.on{opacity:1;color:var(--ink);border-color:var(--line-fuerte);}
+.ley:hover:not(:disabled){background:var(--hover);}
+.ley-punto{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+
+.red-marco{position:relative;margin-top:var(--e4);
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r3);overflow:hidden;box-shadow:var(--sombra-1);}
+.red-lienzo{display:block;cursor:grab;touch-action:none;}
+.red-pie{display:flex;align-items:center;justify-content:space-between;gap:var(--e3);
+  padding:var(--e2) var(--e4);border-top:1px solid var(--line);background:var(--soft);}
+.red-globo{position:absolute;pointer-events:none;max-width:230px;
+  background:var(--panel);border:1px solid var(--line-fuerte);
+  border-radius:var(--r2);padding:var(--e2) var(--e3);
+  box-shadow:var(--sombra-3);font-size:12.5px;z-index:5;}
+.red-globo b{font-family:var(--fuente-mono);font-size:12px;}
 
 /* ============================== 13. Avisos ============================== */
 .aviso{
@@ -411,6 +498,11 @@ pre{
 }
 @media (max-width:640px){
   body{font-size:15px;}
+  .mic-boton{width:96px;height:96px;}
+  .mic-boton .ico{width:40px;height:40px;}
+  .mic-boton.rec::before,.mic-boton.rec::after{width:96px;height:96px;}
+  .paso{gap:var(--e3);}
+  .red-pie{flex-direction:column;align-items:flex-start;}
   .puerta{padding:var(--e4);align-items:flex-start;}
   .puerta-caja{padding:var(--e5);}
   .usuario{width:100%;}
