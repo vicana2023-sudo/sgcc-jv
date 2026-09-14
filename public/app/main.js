@@ -739,6 +739,36 @@ function pintarEstadoGrabacion(grabando) {
   const t = $("#e-tiempo"); if (t && !grabando) t.textContent = "";
 }
 
+/* ------------------------- moverse por el cuestionario ---------------------
+   Se puede ir y volver. Antes solo se avanzaba, y eso obligaba a acertar a la
+   primera: si el experto matizaba una respuesta dos preguntas después —que es
+   lo que pasa en una entrevista real— no había forma de volver a corregirla.
+
+   El avance se registra por pregunta y se REEMPLAZA, no se acumula: pasar dos
+   veces por la misma pregunta no puede contarla dos veces en el informe de
+   cierre ni en el archivo que importa la plantilla. */
+function marcarAvance(idPregunta, estado) {
+  const i = ENT.avance.findIndex((a) => a.id === idPregunta);
+  if (i >= 0) ENT.avance[i] = { id: idPregunta, estado };
+  else ENT.avance.push({ id: idPregunta, estado });
+}
+
+function avanzar(estado) {
+  marcarAvance(ENT.cola[ENT.idx].id, estado);
+  ENT.idx++;
+  guardarSesion();
+  pintarSesion();
+}
+
+function retroceder() {
+  if (ENT.idx <= 0) return;
+  lector.detener();
+  if (vozEnt.activo()) vozEnt.detener();
+  ENT.idx--;
+  guardarSesion();
+  pintarSesion();
+}
+
 function turnosActuales() {
   const p = ENT.cola[ENT.idx];
   return (ENT.turnos[p.id] = ENT.turnos[p.id] || []);
@@ -890,17 +920,48 @@ function pintarSesion() {
   /* ------------------------------ qué sigue ------------------------------ */
   const bar2 = el("div", "row");
   bar2.style.marginTop = "var(--e4)";
+
+  const bant = botonIcono("flecha", "Anterior", "g atras");
+  bant.disabled = ENT.idx === 0;
+  bant.title = ENT.idx === 0
+    ? "Esta es la primera pregunta de la sesión."
+    : "Volver a " + ENT.cola[ENT.idx - 1].id + ". Lo respondido no se pierde.";
+  bant.onclick = retroceder;
+
   const brep = botonIcono("persona", "Repregunta del banco", "g");
   brep.title = p.repregunta;
   brep.onclick = () => anadirTurno(p.repregunta, "entrevistador", "escrito");
+
+  /* El botón se deshabilita cuando no hay nada que formalizar, en vez de
+     dejar pulsar y responder con un aviso arriba del todo: con la conversación
+     de por medio, ese aviso queda fuera de pantalla y parece que el botón está
+     roto. Reportado como «la propuesta del agente no responde», y tenía razón:
+     lo que fallaba era no poder ver por qué. */
+  const dichos = turnosActuales().filter((t) => t.quien === "experto").length;
   const bform = botonIcono("revisar", "Formalizar la regla");
+  bform.disabled = dichos === 0;
+  bform.title = dichos
+    ? "El agente redactará una propuesta con lo que dijo el experto"
+    : turnosActuales().length
+      ? "Hay turnos, pero ninguno del experto. Una repregunta no se puede formalizar."
+      : "Grabe o escriba primero lo que respondió el experto.";
+
   bform.onclick = () => formalizar(caja);
+
   const bsalt = el("button", "g", "Saltar");
-  bsalt.onclick = () => { ENT.avance.push({ id: p.id, estado: "Pendiente" }); ENT.idx++; guardarSesion(); pintarSesion(); };
+  bsalt.title = "Dejarla pendiente y seguir. Puede volver con «Anterior».";
+  bsalt.onclick = () => avanzar("Pendiente");
   const bna = el("button", "g", "No aplica");
-  bna.onclick = () => { ENT.avance.push({ id: p.id, estado: "No aplica" }); ENT.idx++; guardarSesion(); pintarSesion(); };
-  [brep, bform, bsalt, bna].forEach((b) => bar2.appendChild(b));
+  bna.onclick = () => avanzar("No aplica");
+  [bant, brep, bform, bsalt, bna].forEach((b) => bar2.appendChild(b));
   caja.appendChild(bar2);
+
+  if (!dichos) {
+    caja.appendChild(el("p", "note",
+      turnosActuales().length
+        ? "Para formalizar hace falta una respuesta del experto; por ahora solo hay turnos del entrevistador."
+        : "Para formalizar hace falta que el experto responda, por voz o por escrito."));
+  }
 
   c.appendChild(caja);
   chat.scrollTop = chat.scrollHeight;
@@ -1045,10 +1106,7 @@ async function formalizar(caja) {
       "Campos corregidos": dif.camposTocados.join(", "),
       "Aceptada sin cambios": dif.intacta ? "Sí" : "No",
     });
-    ENT.avance.push({ id: p.id, estado: "Respondida" });
-    ENT.idx++;
-    guardarSesion();
-    pintarSesion();
+    avanzar("Respondida");
   };
   const no = el("button", "g", "Seguir preguntando");
   no.onclick = () => f.remove();
@@ -1103,6 +1161,10 @@ function pintarCierreEntrevista() {
     descargar(`sesion-${nz(ENT.numero, 2)}.json`, JSON.stringify(paq, null, 2), "application/json");
     descargar(`sesion-${nz(ENT.numero, 2)}-transcripcion.txt`, txt);
   };
+  const batras = botonIcono("flecha", "Volver a la última pregunta", "g atras");
+  batras.onclick = () => { ENT.idx = ENT.cola.length - 1; guardarSesion(); pintarSesion(); };
+  bar.appendChild(batras);
+
   const bn = el("button", "g", "Nueva sesión");
   bn.onclick = async () => {
     if (ENT && ENT.id) await guardar(COL_SES, ENT.id, { ...ENT, cola: ENT.cola.map((p) => p.id), cerrada: true });
